@@ -52,11 +52,15 @@ export interface FloodSimulationStore {
   flatGrid: GridNode[]; // 1D array of cells for convenient linear iteration
   isPlaying: boolean;
   tick: number; // deterministic step counter
+  elapsedHours: number; // elapsed simulation time in hours: 0, 6, 12, 18, 24...
   floodedArea: number; // count of cells where waterDepth > 0.1m
   affectedResidents: number; // count of affected citizens
 
   // --- 2. Deterministic Physics Step Function ---
   runSimulationStep: () => void;
+  stepForward6Hours: () => void;
+  stepBackward6Hours: () => void;
+  resetToZeroHours: () => void;
 
   // --- 3. Guwahati Real-World Hardware & Telemetry ---
   weatherStations: AutomaticWeatherStation[];
@@ -170,6 +174,7 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
     flatGrid: initialFlat,
     isPlaying: false,
     tick: 0,
+    elapsedHours: 0,
     floodedArea: 3,
     affectedResidents: 0,
 
@@ -205,17 +210,19 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
     togglePlayPause: () => set(state => ({ isPlaying: !state.isPlaying })),
 
     /**
-     * Deterministic Cellular Automata step execution
+     * Deterministic Cellular Automata step execution for 6-hour accumulated interval
      */
     runSimulationStep: () => {
       const state = get();
       const nextTick = state.tick + 1;
+      const nextHours = nextTick * 6;
+      const newElapsed = nextHours * 3600;
 
-      // Update simulated live AWS weather readings
+      // Update simulated live AWS weather readings over 6-hour interval
       const updatedStations = state.weatherStations.map(station => {
         const jitter = Math.sin(nextTick * 0.3 + station.elevationMeters) * 4.0;
         const rain = Math.max(0, state.rainfall * (station.elevationMeters > 60 ? 1.25 : 1.0) + jitter);
-        const acc = station.accumulatedRainfall24hMm + (rain / 60);
+        const acc = station.accumulatedRainfall24hMm + (rain * 6);
         return {
           ...station,
           rainfallMmHr: parseFloat(rain.toFixed(1)),
@@ -224,19 +231,22 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         };
       });
 
-      // Execute deterministic Cellular Automata physics step
-      const result = runSimulationStepPhysics(
+      // Execute deterministic Cellular Automata physics step for the accumulated 6-hour period
+      let result = runSimulationStepPhysics(
         state.grid,
         state.rainfall,
         state.activePumpIds,
         state.config
       );
+      // Second pass to simulate 6-hour hydrological propagation
+      result = runSimulationStepPhysics(
+        result.nextGrid2D,
+        state.rainfall,
+        state.activePumpIds,
+        state.config
+      );
 
-      const newElapsed = state.elapsedSeconds + state.config.timeStepSeconds;
-      const elapsedMins = Math.floor(newElapsed / 60);
-      const hours = Math.floor(elapsedMins / 60);
-      const mins = elapsedMins % 60;
-      const timeLabel = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+      const timeLabel = `T+${String(nextHours).padStart(2, '0')}h`;
 
       // Update pump operational metrics
       const updatedPumps: GMDAPumpStation[] = state.gmdaPumps.map(pump => {
@@ -271,7 +281,7 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
 
       const newTelemetryPoint: TelemetryPoint = {
         timeLabel,
-        elapsedMinutes: elapsedMins,
+        elapsedMinutes: nextHours * 60,
         floodedAreaSqKm: result.floodedAreaSqKm,
         affectedPopulation: result.affectedResidents,
         criticalZones: result.criticalZoneCount,
@@ -293,8 +303,9 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         flatGrid: result.nextGrid,
         tick: nextTick,
         currentTick: nextTick,
-        maxRecordedTick: Math.max(state.maxRecordedTick, nextTick),
+        elapsedHours: nextHours,
         elapsedSeconds: newElapsed,
+        maxRecordedTick: Math.max(state.maxRecordedTick, nextTick),
         floodedArea: result.floodedArea,
         floodedAreaSqKm: result.floodedAreaSqKm,
         affectedResidents: result.affectedResidents,
@@ -318,26 +329,35 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       get().runSimulationStep();
     },
 
+    stepForward6Hours: () => {
+      get().runSimulationStep();
+    },
+
     stepBackward: () => {
       const state = get();
       if (state.tick <= 0) return;
       const prevTick = state.tick - 1;
+      const prevHours = prevTick * 6;
       const snap = state.history[prevTick];
       if (snap) {
         const res2D: GridNode[][] = [];
         for (let y = 0; y < GRID_HEIGHT; y++) {
           const row: GridNode[] = [];
           for (let x = 0; x < GRID_WIDTH; x++) {
-            row.push(snap.grid[y * GRID_WIDTH + x]);
+            res2D.push(row);
+            const idx = y * GRID_WIDTH + x;
+            if (snap.grid[idx]) {
+              row.push(snap.grid[idx]);
+            }
           }
-          res2D.push(row);
         }
         set({
           grid: res2D,
           flatGrid: snap.grid,
-          tick: snap.tick,
-          currentTick: snap.tick,
-          elapsedSeconds: snap.elapsedSeconds,
+          tick: prevTick,
+          currentTick: prevTick,
+          elapsedHours: prevHours,
+          elapsedSeconds: prevHours * 3600,
           floodedAreaSqKm: snap.floodedAreaSqKm,
           affectedResidents: snap.affectedPopulation,
           affectedPopulation: snap.affectedPopulation,
@@ -348,6 +368,14 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
           totalDrainedVolume: snap.totalDrainedVolume,
         });
       }
+    },
+
+    stepBackward6Hours: () => {
+      get().stepBackward();
+    },
+
+    resetToZeroHours: () => {
+      get().resetSimulation();
     },
 
     jumpToTick: (targetTick: number) => {
@@ -368,6 +396,7 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
           flatGrid: snap.grid,
           tick: snap.tick,
           currentTick: snap.tick,
+          elapsedHours: snap.tick * 6,
           elapsedSeconds: snap.elapsedSeconds,
           floodedAreaSqKm: snap.floodedAreaSqKm,
           affectedResidents: snap.affectedPopulation,
@@ -534,6 +563,7 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         tick: 0,
         currentTick: 0,
         maxRecordedTick: 0,
+        elapsedHours: 0,
         elapsedSeconds: 0,
         floodedArea: 3,
         floodedAreaSqKm: 0.18,

@@ -1,13 +1,13 @@
 /**
- * HYDRO MATRIX: Left Drawer (Scenario & Controls Panel)
+ * HYDRO MATRIX: Left Drawer (Guwahati Basin Controls & Emergency Scenarios)
  * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Features:
- * - Interactive toggles for the 20 GMDA auto-priming dewatering pumps
- * - Disaster scenario: "Simulate GMDA 20 Auto-Priming Pump Grid Failure"
- * - Brahmaputra Bharalumukh Sluice Gate controls
- * - Guwahati-calibrated crisis scenarios (Monsoon, Khasi Cloudburst, etc.)
- * - Bidirectional time travel timeline scrubber & playback controls
+ * - 6-hour fixed step timeline controls ([-6h], [+6h], [Reset 0h], "Elapsed Time: +[X] Hours")
+ * - Simplified Catchment Precipitation with layman-friendly tags & descriptions
+ * - Main River Flood Gate (Bharalumukh Sluice) with clear State A / State B barrier toggle
+ * - 20 GMDA auto-priming dewatering pump station controls
+ * - Guwahati-calibrated emergency scenarios & live fault injection
  */
 
 'use client';
@@ -37,16 +37,13 @@ import {
   Clock,
   Cpu,
   Power,
+  Info,
 } from 'lucide-react';
-import { formatTime } from '@/lib/utils';
 
 export const LeftDrawer: React.FC = () => {
   const {
-    currentTick,
-    maxRecordedTick,
-    elapsedSeconds,
+    elapsedHours,
     isPlaying,
-    playbackSpeed,
     activeScenarioId,
     config,
     activeDisasters,
@@ -55,17 +52,15 @@ export const LeftDrawer: React.FC = () => {
     activePumps,
     rainfall,
     togglePlayPause,
-    stepForward,
-    stepBackward,
-    jumpToTick,
-    setPlaybackSpeed,
+    stepForward6Hours,
+    stepBackward6Hours,
+    resetToZeroHours,
     setRainfallIntensity,
     setBrahmaputraSluiceGate,
     toggleGMDAPump,
     setAllGMDAPumpsState,
     simulateGMDAPumpsFailure,
     loadScenario,
-    resetSimulation,
     injectDisaster,
     removeDisaster,
   } = useFloodSimulation();
@@ -87,15 +82,41 @@ export const LeftDrawer: React.FC = () => {
     );
   }
 
-  const getRainfallLabel = (mm: number) => {
-    if (mm <= 10) return { label: 'Light Monsoon Drizzle', color: 'text-slate-400' };
-    if (mm <= 30) return { label: 'Moderate Basin Rainfall', color: 'text-blue-400' };
-    if (mm <= 70) return { label: 'Heavy Urban Downpour', color: 'text-cyan-400' };
-    if (mm <= 120) return { label: 'Severe Torrential Storm', color: 'text-amber-400 font-bold' };
-    return { label: 'Khasi Foothills Cloudburst', color: 'text-rose-400 font-bold animate-pulse' };
+  // Plain-English rainfall classification
+  const getRainfallTag = (mm: number) => {
+    if (mm <= 15) {
+      return {
+        tag: 'Light Rain (Manageable)',
+        colorClass: 'text-emerald-300 bg-emerald-950/70 border-emerald-500/40',
+        textColor: 'text-emerald-400',
+        severity: 'safe',
+      };
+    }
+    if (mm <= 40) {
+      return {
+        tag: 'Moderate Rain (Channels filling up)',
+        colorClass: 'text-cyan-300 bg-cyan-950/70 border-cyan-500/40',
+        textColor: 'text-cyan-400',
+        severity: 'cyan',
+      };
+    }
+    if (mm <= 80) {
+      return {
+        tag: 'Heavy Downpour (Waterlogging begins)',
+        colorClass: 'text-amber-300 bg-amber-950/70 border-amber-500/40',
+        textColor: 'text-amber-400',
+        severity: 'warning',
+      };
+    }
+    return {
+      tag: 'Extreme Cloudburst (Severe flash flood danger)',
+      colorClass: 'text-rose-300 bg-rose-950/70 border-rose-500/40 animate-pulse',
+      textColor: 'text-rose-400',
+      severity: 'critical',
+    };
   };
 
-  const rainInfo = getRainfallLabel(rainfall);
+  const rainInfo = getRainfallTag(rainfall);
 
   const scenarioIcons: Record<string, React.ReactNode> = {
     CloudRain: <CloudRain className="h-4 w-4 text-blue-400" />,
@@ -129,103 +150,88 @@ export const LeftDrawer: React.FC = () => {
       </div>
 
       <div className="p-4 space-y-5 text-slate-200">
-        {/* --- SECTION 1: TIMELINE & PLAYBACK CONTROLLER --- */}
-        <div className="rounded-xl border border-cyan-500/30 bg-slate-900/60 p-3.5 shadow-inner">
-          <div className="flex items-center justify-between mb-2">
+        {/* --- SECTION 1: SIMULATION TIMELINE (FIXED 6-HOUR INTERVALS) --- */}
+        <div className="rounded-xl border border-cyan-500/30 bg-slate-900/60 p-3.5 shadow-inner space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-300">
               <Clock className="h-3.5 w-3.5 text-cyan-400" />
               <span>SIMULATION TIMELINE</span>
             </div>
-            <span className="font-mono text-xs font-bold text-white bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-              T+{formatTime(elapsedSeconds)}
+            <span className="font-mono text-xs font-bold text-cyan-200 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/60">
+              T+{String(elapsedHours).padStart(2, '0')}h
             </span>
           </div>
 
-          <div className="space-y-1">
-            <div className="flex justify-between text-[11px] text-slate-400">
-              <span>Scrub Progress:</span>
-              <span className="font-mono text-cyan-300">
-                Tick {currentTick} / {Math.max(currentTick, maxRecordedTick)}
-              </span>
+          {/* Prominent Elapsed Time Display */}
+          <div className="rounded-lg bg-slate-950/90 border border-slate-800 p-3 text-center shadow-md">
+            <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400 mb-0.5">
+              Forecast Timeline Interval
             </div>
-            <Slider
-              min={0}
-              max={Math.max(1, maxRecordedTick)}
-              step={1}
-              value={currentTick}
-              onValueChange={(val) => jumpToTick(val)}
-              accentColor="cyan"
-            />
+            <div className="text-xl font-black font-mono text-white tracking-wide">
+              Elapsed Time: +{elapsedHours} Hours
+            </div>
+            <div className="text-[11px] text-cyan-400/90 mt-0.5 font-medium">
+              Step-based 6-hour hydrological forecast
+            </div>
           </div>
 
-          <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-800/80">
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-8 w-8"
-                onClick={stepBackward}
-                disabled={currentTick <= 0}
-                title="Step Backward"
-              >
-                <StepBack className="h-4 w-4" />
-              </Button>
+          {/* Intuitive Step Buttons: [-] -6h, [+] +6h, Reset to 0h */}
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={stepBackward6Hours}
+              disabled={elapsedHours <= 0}
+              className="h-9 gap-1 text-xs font-bold border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-40"
+              title="Step back 6 hours to view previous simulation state"
+            >
+              <StepBack className="h-4 w-4 text-cyan-400" />
+              <span>-6h</span>
+            </Button>
 
-              <Button
-                size="sm"
-                variant={isPlaying ? 'destructive' : 'default'}
-                onClick={togglePlayPause}
-                className="gap-1.5 px-3"
-              >
-                {isPlaying ? (
-                  <>
-                    <Pause className="h-3.5 w-3.5 fill-current" />
-                    <span>PAUSE</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-3.5 w-3.5 fill-current" />
-                    <span>SIMULATE</span>
-                  </>
-                )}
-              </Button>
+            <Button
+              size="sm"
+              variant="cyan"
+              onClick={stepForward6Hours}
+              className="h-9 gap-1 text-xs font-bold shadow-lg shadow-cyan-950/60"
+              title="Increment clock by 6 hours and run simulation calculations"
+            >
+              <StepForward className="h-4 w-4" />
+              <span>+6h</span>
+            </Button>
 
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-8 w-8"
-                onClick={stepForward}
-                title="Step Forward"
-              >
-                <StepForward className="h-4 w-4" />
-              </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={resetToZeroHours}
+              className="h-9 gap-1 text-xs font-bold border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300"
+              title="Reset simulation timeline back to 0 hours"
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-amber-400" />
+              <span>Reset 0h</span>
+            </Button>
+          </div>
 
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 text-slate-400 hover:text-white"
-                onClick={resetSimulation}
-                title="Reset to T+00:00"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-0.5 rounded-lg border border-slate-800 bg-slate-950 p-0.5">
-              {[1, 2, 5, 10].map((spd) => (
-                <button
-                  key={spd}
-                  onClick={() => setPlaybackSpeed(spd)}
-                  className={`px-1.5 py-0.5 text-[10px] font-mono font-bold rounded transition-colors ${
-                    playbackSpeed === spd
-                      ? 'bg-cyan-500 text-slate-950 shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {spd}x
-                </button>
-              ))}
-            </div>
+          {/* Auto-Run Toggle */}
+          <div className="pt-0.5">
+            <Button
+              size="xs"
+              variant={isPlaying ? 'destructive' : 'secondary'}
+              onClick={togglePlayPause}
+              className="w-full h-7 gap-1.5 text-[11px] font-semibold"
+            >
+              {isPlaying ? (
+                <>
+                  <Pause className="h-3 w-3 fill-current" />
+                  <span>Pause Automated Stepping</span>
+                </>
+              ) : (
+                <>
+                  <Play className="h-3 w-3 fill-current" />
+                  <span>Auto-Step Simulation (6h cycle)</span>
+                </>
+              )}
+            </Button>
           </div>
         </div>
 
@@ -237,15 +243,15 @@ export const LeftDrawer: React.FC = () => {
               <span>20 GMDA Auto-Priming Pumps</span>
             </div>
             <Badge variant={activePumps === 20 ? 'safe' : activePumps > 0 ? 'warning' : 'critical'} className="text-[10px] font-mono">
-              {activePumps}/20 ARMED
+              {activePumps}/20 RUNNING
             </Badge>
           </div>
 
           <p className="text-[11px] text-slate-300 leading-tight">
-            High-discharge mobile & fixed dewatering pumps deployed at vulnerable hotspots across Anil Nagar, Nabin Nagar, Rukminigaon, and Tarun Nagar.
+            High-power drainage pumps stationed at flood-prone neighborhoods: Anil Nagar, Nabin Nagar, Rukminigaon, and Tarun Nagar.
           </p>
 
-          {/* Master Pump Grid Controls */}
+          {/* Master Pump Controls */}
           <div className="grid grid-cols-2 gap-2 pt-1">
             <Button
               size="xs"
@@ -254,7 +260,7 @@ export const LeftDrawer: React.FC = () => {
               className="text-[11px] h-7"
             >
               <Power className="h-3 w-3 mr-1" />
-              {allPumpsActive ? 'Stand Down All' : 'Arm All 20 Pumps'}
+              {allPumpsActive ? 'Turn Off All' : 'Turn On All 20 Pumps'}
             </Button>
 
             <Button
@@ -265,10 +271,10 @@ export const LeftDrawer: React.FC = () => {
                 playTacticalAlertSound('critical');
               }}
               className="text-[11px] h-7 bg-rose-950 hover:bg-rose-900 border border-rose-600/50"
-              title="Trigger electrical blackout simulating total GMDA dewatering failure"
+              title="Simulate electrical power failure across all GMDA dewatering pumps"
             >
               <AlertOctagon className="h-3 w-3 mr-1 text-rose-400" />
-              Simulate Pump Failure
+              Simulate Power Outage
             </Button>
           </div>
 
@@ -278,7 +284,7 @@ export const LeftDrawer: React.FC = () => {
               onClick={() => setPumpsExpanded(!pumpsExpanded)}
               className="w-full text-[11px] text-cyan-300 hover:text-cyan-200 flex items-center justify-between py-1 border-t border-blue-900/40"
             >
-              <span>{pumpsExpanded ? 'Hide' : 'Configure individual 20 pump stations'}</span>
+              <span>{pumpsExpanded ? 'Hide individual stations' : 'Configure individual 20 pump stations'}</span>
               <span className="font-mono text-[10px]">{pumpsExpanded ? '▲' : '▼'}</span>
             </button>
 
@@ -305,7 +311,7 @@ export const LeftDrawer: React.FC = () => {
                             : 'bg-rose-950/50 text-rose-300 border border-rose-500/40'
                         }`}
                       >
-                        {isActive ? 'ARMED' : 'OFFLINE'}
+                        {isActive ? 'RUNNING' : 'STOPPED'}
                       </button>
                     </div>
                   );
@@ -315,17 +321,22 @@ export const LeftDrawer: React.FC = () => {
           </div>
         </div>
 
-        {/* --- SECTION 3: METEOROLOGICAL RAINFALL SLIDER --- */}
-        <div className="space-y-2 rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5">
+        {/* --- SECTION 3: RAINFALL INTENSITY (CATCHMENT AREA) --- */}
+        <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
-              <CloudRain className="h-3.5 w-3.5 text-blue-400" />
-              <span>Catchment Precipitation</span>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+              <CloudRain className="h-4 w-4 text-cyan-400" />
+              <span>Rainfall Intensity (Catchment Area)</span>
             </div>
-            <span className="font-mono text-xs font-bold text-cyan-300">
+            <span className="font-mono text-xs font-bold text-cyan-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
               {rainfall} mm/h
             </span>
           </div>
+
+          {/* Subtitle / Plain Language Description */}
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            How heavy the rain is falling over the city and surrounding hills. Higher rain fills drains faster and causes water to pool in low-lying neighborhoods.
+          </p>
 
           <Slider
             min={0}
@@ -333,23 +344,110 @@ export const LeftDrawer: React.FC = () => {
             step={2}
             value={rainfall}
             onValueChange={(val) => setRainfallIntensity(val)}
-            accentColor={rainfall > 100 ? 'rose' : rainfall > 50 ? 'amber' : 'cyan'}
+            accentColor={rainfall > 80 ? 'rose' : rainfall > 40 ? 'amber' : 'cyan'}
           />
 
-          <div className="flex items-center justify-between text-[11px]">
-            <span className={rainInfo.color}>{rainInfo.label}</span>
-            <span className="text-slate-500 font-mono">
-              Orographic: {rainfall > 60 ? '+25% Khasi Hills' : 'Normal'}
+          {/* Plain-English Tag Indicator */}
+          <div className={`p-2 rounded-lg border text-xs font-semibold flex items-center justify-between ${rainInfo.colorClass}`}>
+            <span className="flex items-center gap-1.5">
+              <Info className="h-3.5 w-3.5 shrink-0" />
+              <span>{rainInfo.tag}</span>
+            </span>
+            <span className="font-mono text-[10px] opacity-80">{rainfall} mm/h</span>
+          </div>
+
+          {/* Hill Rainfall Indicator */}
+          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+            <span>Hill Rainfall:</span>
+            <span className={`font-mono font-medium ${rainfall > 60 ? 'text-amber-400 font-semibold' : 'text-slate-400'}`}>
+              {rainfall > 60 ? '+25% runoff from Khasi Hills' : 'Normal hill runoff'}
             </span>
           </div>
         </div>
 
-        {/* --- SECTION 4: PREDEFINED GUWAHATI CRISIS SCENARIOS --- */}
+        {/* --- SECTION 4: MAIN RIVER FLOOD GATE (BHARALUMUKH SLUICE) --- */}
+        <div className="space-y-3 rounded-xl border border-cyan-500/30 bg-slate-900/50 p-3.5 text-xs">
+          <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+            <span className="flex items-center gap-1.5 text-cyan-300 font-bold">
+              <Waves className="h-4 w-4 text-cyan-400" />
+              Main River Flood Gate (Bharalumukh Sluice)
+            </span>
+          </div>
+
+          {/* Plain-English Explanation Note */}
+          <div className="rounded-lg bg-slate-950/80 border border-slate-800/80 p-2.5 space-y-1.5 text-[11px] text-slate-300 leading-relaxed">
+            <p className="font-semibold text-slate-200">
+              This gate stops the swollen Brahmaputra river from flowing backward into the city&apos;s drainage channels:
+            </p>
+            <ul className="space-y-1 text-slate-300 pl-1">
+              <li className="flex items-start gap-1.5">
+                <span className="text-cyan-400 font-bold">•</span>
+                <span>
+                  When the river rises higher than city drains, closing this gate stops river water from flooding the city, but also traps internal rainwater inside unless pumped out.
+                </span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-emerald-400 font-bold">•</span>
+                <span>
+                  <strong className="text-emerald-300">Gate OPEN:</strong> Rainwater drains naturally into the river by gravity (only works when the river is lower than city drains).
+                </span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-amber-400 font-bold">•</span>
+                <span>
+                  <strong className="text-amber-300">Gate CLOSED:</strong> Blocks river backflow, but city rainwater cannot exit naturally and relies on emergency pumps.
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Clear State A / State B Toggle Switch */}
+          <div className="p-3 rounded-lg bg-slate-950/90 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-300">River Barrier Status</span>
+              <Badge
+                variant={config.sluiceGateOpen ? 'safe' : 'critical'}
+                className="text-[10px]"
+              >
+                {config.sluiceGateOpen ? 'NATURAL DRAINAGE' : 'BARRIER ACTIVE'}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 pt-1">
+              <button
+                onClick={() => setBrahmaputraSluiceGate(!config.sluiceGateOpen)}
+                className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-between border ${
+                  config.sluiceGateOpen
+                    ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/50 shadow-md shadow-emerald-950/30'
+                    : 'bg-rose-950/40 border-rose-500/50 text-rose-300 hover:bg-rose-900/50 shadow-md shadow-rose-950/30'
+                }`}
+              >
+                <span className="text-left">
+                  {config.sluiceGateOpen
+                    ? 'State A: Gate Open (Natural Drainage)'
+                    : 'State B: Gate Closed (Brahmaputra Rising / River Barrier Active)'}
+                </span>
+                <span className="text-[10px] font-mono underline ml-1 shrink-0">
+                  {config.sluiceGateOpen ? 'Click to Close' : 'Click to Open'}
+                </span>
+              </button>
+            </div>
+
+            <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-900">
+              <span>Brahmaputra River Water Level:</span>
+              <span className="font-mono text-cyan-300 font-semibold">
+                {config.brahmaputraFloodStageMeters || 48.2}m (Danger Mark: 50.5m)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* --- SECTION 5: GUWAHATI FLOOD SCENARIOS --- */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Gauge className="h-3.5 w-3.5 text-cyan-400" />
-              Guwahati Scenarios
+              Guwahati Flood Scenarios
             </h3>
             <span className="text-[10px] text-slate-500 font-mono">GMDA BASIN</span>
           </div>
@@ -380,9 +478,9 @@ export const LeftDrawer: React.FC = () => {
                     <Badge
                       size="xs"
                       variant={
-                        preset.badge.includes('PUMPS DOWN') || preset.badge.includes('BACKFLOW')
+                        preset.badge.includes('PUMPS DOWN') || preset.badge.includes('BARRIER')
                           ? 'critical'
-                          : preset.badge.includes('SURGE')
+                          : preset.badge.includes('HILL RAIN')
                           ? 'warning'
                           : 'default'
                       }
@@ -396,7 +494,7 @@ export const LeftDrawer: React.FC = () => {
                   </p>
                   <div className="flex items-center gap-3 mt-2 text-[10px] font-mono text-slate-400">
                     <span>Rain: <strong className="text-slate-200">{preset.rainfallIntensity} mm/h</strong></span>
-                    <span>Pumps: <strong className="text-slate-200">{preset.pumpsOffline ? '0/20 (FAILED)' : '20/20 Active'}</strong></span>
+                    <span>Pumps: <strong className="text-slate-200">{preset.pumpsOffline ? '0/20 (OFFLINE)' : '20/20 Running'}</strong></span>
                   </div>
                 </button>
               );
@@ -404,20 +502,20 @@ export const LeftDrawer: React.FC = () => {
           </div>
         </div>
 
-        {/* --- SECTION 5: DISASTER INJECTION SUITE --- */}
+        {/* --- SECTION 6: SIMULATE EMERGENCIES (FAULT INJECTION) --- */}
         <div className="space-y-2.5 rounded-xl border border-rose-900/50 bg-rose-950/20 p-3.5">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-rose-300 flex items-center gap-1.5">
               <Flame className="h-3.5 w-3.5 text-rose-500 animate-pulse" />
-              Disaster Injection Suite
+              Simulate Emergencies
             </h3>
             <span className="text-[9px] font-mono font-semibold text-rose-400 uppercase bg-rose-950 px-1.5 py-0.5 rounded border border-rose-800/60">
-              LIVE FAULT
+              TRIGGER EVENT
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {/* GMDA 20 Pumps Blackout */}
+            {/* GMDA 20 Pumps Power Outage */}
             <Button
               variant="destructive"
               size="sm"
@@ -429,10 +527,10 @@ export const LeftDrawer: React.FC = () => {
             >
               <div className="flex items-center gap-1.5 font-bold text-xs text-rose-200 mb-0.5">
                 <AlertOctagon className="h-3.5 w-3.5 text-rose-400 shrink-0" />
-                <span>20 Pumps Blackout</span>
+                <span>20 Pumps Power Outage</span>
               </div>
               <span className="text-[10px] text-rose-300/80 font-normal leading-tight">
-                Simulate GMDA pump failure
+                Simulate pump power cut
               </span>
             </Button>
 
@@ -448,10 +546,10 @@ export const LeftDrawer: React.FC = () => {
             >
               <div className="flex items-center gap-1.5 font-bold text-xs text-blue-200 mb-0.5">
                 <Waves className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-                <span>Brahmaputra Backflow</span>
+                <span>River Backflow Barrier</span>
               </div>
               <span className="text-[10px] text-blue-300/80 font-normal leading-tight">
-                Sluice gate closed & locked
+                Flood gate closed as river rises
               </span>
             </Button>
 
@@ -467,10 +565,10 @@ export const LeftDrawer: React.FC = () => {
             >
               <div className="flex items-center gap-1.5 font-bold text-xs text-amber-200 mb-0.5">
                 <ShieldAlert className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                <span>Zoo Rd Silt Dam</span>
+                <span>Zoo Rd Drain Blockage</span>
               </div>
               <span className="text-[10px] text-amber-300/80 font-normal leading-tight">
-                Bahini-Bharalu culvert choke
+                Drain choked with silt & trash
               </span>
             </Button>
 
@@ -486,19 +584,19 @@ export const LeftDrawer: React.FC = () => {
             >
               <div className="flex items-center gap-1.5 font-bold text-xs text-purple-200 mb-0.5">
                 <CloudLightning className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-                <span>Khasi Cloudburst</span>
+                <span>Severe Hill Cloudburst</span>
               </div>
               <span className="text-[10px] text-purple-300/80 font-normal leading-tight">
-                160 mm/h foothill burst
+                Heavy 160 mm/h hill downpour
               </span>
             </Button>
           </div>
 
-          {/* Active Disasters List */}
+          {/* Active Emergencies List */}
           {activeDisasters.length > 0 && (
             <div className="mt-2 space-y-1.5 pt-2 border-t border-rose-900/40">
               <div className="text-[10px] uppercase font-bold text-rose-400 tracking-wider">
-                Active Injected Faults ({activeDisasters.length})
+                Active Emergency Events ({activeDisasters.length})
               </div>
               {activeDisasters.map((d) => (
                 <div
@@ -521,33 +619,6 @@ export const LeftDrawer: React.FC = () => {
               ))}
             </div>
           )}
-        </div>
-
-        {/* --- SECTION 6: BHARALUMUKH SLUICE GATE & BRAHMAPUTRA STAGE --- */}
-        <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5 text-xs">
-          <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-            <span className="flex items-center gap-1.5">
-              <Waves className="h-3.5 w-3.5 text-cyan-400" />
-              Bharalumukh Sluice Gate Control
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between p-2 rounded bg-slate-950/70 border border-slate-800">
-            <div>
-              <span className="font-bold text-slate-200 block">River Sluice Barrier</span>
-              <span className="text-[10px] text-slate-400">
-                Brahmaputra Stage: {config.brahmaputraFloodStageMeters || 48.2}m MSL
-              </span>
-            </div>
-            <Button
-              size="xs"
-              variant={config.sluiceGateOpen ? 'cyan' : 'destructive'}
-              onClick={() => setBrahmaputraSluiceGate(!config.sluiceGateOpen)}
-              className="text-[11px]"
-            >
-              {config.sluiceGateOpen ? 'Sluice Open (Discharging)' : 'Sluice Locked (Backflow Def)'}
-            </Button>
-          </div>
         </div>
       </div>
     </aside>
