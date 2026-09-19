@@ -30,8 +30,10 @@ import {
   Info,
   Building2,
   LogIn,
+  PhoneCall,
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
+
 
 
 export const Header: React.FC = () => {
@@ -87,7 +89,7 @@ export const Header: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-sm md:text-base tracking-wider text-white">
-                FLOW<span className="text-cyan-400">SHIELD</span>
+                HYDRO<span className="text-cyan-400"> MATRIX</span>
               </span>
               <span className="rounded bg-cyan-950 px-1.5 py-0.5 text-[9px] font-mono font-bold text-cyan-300 border border-cyan-500/30">
                 GUWAHATI
@@ -173,6 +175,21 @@ export const Header: React.FC = () => {
         >
           <BarChart3 className="h-3.5 w-3.5" />
           <span>Compare Scenarios</span>
+        </Button>
+
+        {/* Emergency Voice Helpline Button */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setActiveModal('emergency_helpline');
+            playTacticalAlertSound('critical');
+          }}
+          className="gap-1.5 text-xs border-rose-500/50 bg-rose-950/30 text-rose-300 hover:bg-rose-900/50 hover:border-rose-400 shadow-sm shadow-rose-950/40"
+          title="Open AI Emergency Voice Helpline & Telephony Dispatch"
+        >
+          <PhoneCall className="h-3.5 w-3.5 text-rose-400 animate-pulse" />
+          <span>Emergency Helpline</span>
         </Button>
 
         {/* Evacuation Advisor Button */}
