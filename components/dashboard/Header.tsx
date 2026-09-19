@@ -88,8 +88,8 @@ export const Header: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-sm md:text-base tracking-wider text-white">
-                HYDRO<span className="text-cyan-400"> MATRIX</span>
+              <span className="font-extrabold text-sm md:text-base tracking-wider text-white whitespace-nowrap">
+                HYDRO<span className="text-cyan-400">&#8202;MATRIX</span>
               </span>
               <span className="rounded bg-cyan-950 px-1.5 py-0.5 text-[9px] font-mono font-bold text-cyan-300 border border-cyan-500/30">
                 GUWAHATI
