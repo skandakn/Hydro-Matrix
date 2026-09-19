@@ -6,7 +6,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ import {
   Printer,
   CheckCircle,
   AlertTriangle,
+  Save,
+  Loader2,
 } from 'lucide-react';
 import { formatTime, formatPopulation } from '@/lib/utils';
 
@@ -36,9 +38,53 @@ export const SitRepModal: React.FC = () => {
 
   const { activeModal, setActiveModal } = useUIContext();
 
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
   if (activeModal !== 'export_report') return null;
 
   const compromised = grid.filter(n => n.infrastructure && n.status === 'CRITICAL');
+
+  const handleSaveToDb = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/sitrep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          elapsed_seconds: elapsedSeconds,
+          tick: currentTick,
+          flooded_area_sqkm: floodedAreaSqKm,
+          affected_population: affectedPopulation,
+          critical_zone_count: criticalZoneCount,
+          max_water_depth: maxWaterDepth,
+          rainfall_intensity_mmhr: config.rainfallIntensity,
+          active_pumps_count: activePumpsCount,
+          bahini_bharalu_flow_m3s: bahiniBharaluFlowM3S,
+          sluice_gate_open: config.sluiceGateOpen,
+          brahmaputra_stage_m: config.brahmaputraFloodStageMeters,
+          scenario_id: 'guwahati-monsoon',
+          scenario_name: 'Guwahati Basin Crisis SitRep',
+          compromised_infrastructure: compromised.map(c => ({
+            id: c.id,
+            name: c.infrastructureName,
+            x: c.x,
+            y: c.y,
+            water_level: c.currentWaterLevel,
+          })),
+          active_disasters: [],
+        }),
+      });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
+    } catch {
+      // Non-critical — silently fail
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
@@ -133,15 +179,33 @@ export const SitRepModal: React.FC = () => {
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-800 pt-3">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => window.print()}
-            className="gap-1.5 text-xs"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            <span>Print SitRep</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.print()}
+              className="gap-1.5 text-xs"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>Print SitRep</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSaveToDb}
+              disabled={saving || saved}
+              className={`gap-1.5 text-xs ${saved ? 'border-emerald-500/50 text-emerald-400' : 'border-cyan-500/30 text-cyan-300'}`}
+            >
+              {saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : saved ? (
+                <CheckCircle className="h-3.5 w-3.5" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              <span>{saved ? 'Saved to DB' : 'Save Report'}</span>
+            </Button>
+          </div>
           <Button size="sm" variant="default" onClick={() => setActiveModal('none')}>
             Done
           </Button>

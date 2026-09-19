@@ -58,57 +58,129 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
 
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [activePlayingId, setActivePlayingId] = useState<number | null>(null);
 
   // Auto scroll
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Robust sound playback with ElevenLabs + Web Speech API fallback
-  const playAudio = (audioBase64?: string, textFallback?: string) => {
+  // Pre-prime audio on user interaction to bypass browser autoplay restrictions
+  const primeAudioElement = () => {
     try {
-      if (audioBase64) {
-        if (!audioRef.current) {
-          audioRef.current = new Audio();
-        }
-        audioRef.current.src = `data:audio/mpeg;base64,${audioBase64}`;
-        setIsPlayingAudio(true);
-        audioRef.current.onended = () => setIsPlayingAudio(false);
-        audioRef.current.onerror = () => {
-          setIsPlayingAudio(false);
-          if (textFallback && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const utter = new SpeechSynthesisUtterance(textFallback);
-            utter.rate = 1.0;
-            window.speechSynthesis.speak(utter);
-          }
-        };
-        audioRef.current.play().catch((err) => {
-          console.warn('ElevenLabs audio playback was restricted by browser, using Web Speech fallback:', err);
-          setIsPlayingAudio(false);
-          if (textFallback && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const utter = new SpeechSynthesisUtterance(textFallback);
-            utter.rate = 1.0;
-            window.speechSynthesis.speak(utter);
-          }
-        });
-        return;
+      if (!audioRef.current && typeof window !== 'undefined') {
+        audioRef.current = new Audio();
       }
-
-      if (textFallback && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(textFallback);
-        utter.rate = 1.0;
-        setIsPlayingAudio(true);
-        utter.onend = () => setIsPlayingAudio(false);
-        utter.onerror = () => setIsPlayingAudio(false);
-        window.speechSynthesis.speak(utter);
+      if (audioRef.current) {
+        // Load an empty blob or trigger silent warmup
+        audioRef.current.pause();
       }
     } catch (e) {
-      console.error('Audio playback error:', e);
-      setIsPlayingAudio(false);
+      console.warn('Audio priming note:', e);
     }
+  };
+
+  // Robust sound playback with ElevenLabs + Google Neural Audio + Web Speech API fallback
+  const playAudio = (audioBase64?: string, textFallback?: string, messageIndex?: number) => {
+    try {
+      if (messageIndex !== undefined) {
+        setActivePlayingId(messageIndex);
+      }
+      playTacticalAlertSound('action');
+
+      if (audioBase64 && audioBase64.length > 50) {
+        if (!audioRef.current && typeof window !== 'undefined') {
+          audioRef.current = new Audio();
+        }
+
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = `data:audio/mpeg;base64,${audioBase64}`;
+          audioRef.current.volume = 1.0;
+          setIsPlayingAudio(true);
+
+          audioRef.current.onended = () => {
+            setIsPlayingAudio(false);
+            setActivePlayingId(null);
+          };
+
+          audioRef.current.onerror = (e) => {
+            console.warn('Audio element error, falling back to Web Speech synthesis:', e);
+            setIsPlayingAudio(false);
+            setActivePlayingId(null);
+            speakWithBrowserSynthesis(textFallback);
+          };
+
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((err) => {
+              console.warn('Browser media autoplay restricted, falling back to Web Speech:', err);
+              setIsPlayingAudio(false);
+              setActivePlayingId(null);
+              speakWithBrowserSynthesis(textFallback);
+            });
+          }
+          return;
+        }
+      }
+
+      // If no audioBase64 or failed, speak with Web Speech API
+      speakWithBrowserSynthesis(textFallback);
+    } catch (e) {
+      console.error('Audio playback exception:', e);
+      setIsPlayingAudio(false);
+      setActivePlayingId(null);
+      speakWithBrowserSynthesis(textFallback);
+    }
+  };
+
+  const speakWithBrowserSynthesis = (text?: string) => {
+    if (!text || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      setIsPlayingAudio(false);
+      setActivePlayingId(null);
+      return;
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1.05;
+      utter.pitch = 1.0;
+      utter.volume = 1.0;
+
+      // Select natural English voice if available
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(
+        (v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('David'))
+      ) || voices.find((v) => v.lang.startsWith('en'));
+
+      if (preferredVoice) {
+        utter.voice = preferredVoice;
+      }
+
+      setIsPlayingAudio(true);
+      utter.onend = () => {
+        setIsPlayingAudio(false);
+        setActivePlayingId(null);
+      };
+      utter.onerror = () => {
+        setIsPlayingAudio(false);
+        setActivePlayingId(null);
+      };
+
+      window.speechSynthesis.speak(utter);
+    } catch (err) {
+      console.error('Web Speech API error:', err);
+      setIsPlayingAudio(false);
+      setActivePlayingId(null);
+    }
+  };
+
+  // Sound check / test speaker function
+  const handleTestSoundCheck = () => {
+    primeAudioElement();
+    const testText = 'Emergency broadcast system operational. Voice audio is working properly.';
+    playAudio(undefined, testText, 999);
   };
 
   // Load system info on open
@@ -128,6 +200,9 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
   const handleSendMessage = async (customText?: string) => {
     const textToSend = customText || inputText;
     if (!textToSend.trim() || isProcessing) return;
+
+    // Immediately prime audio on user click to secure browser autoplay permission
+    primeAudioElement();
 
     setInputText('');
     const now = new Date();
@@ -154,8 +229,8 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
         };
         setMessages((prev) => [...prev, assistantMsg]);
 
-        // Trigger speech immediately
-        playAudio(data.audioBase64, data.responseText);
+        // Auto-play voice response immediately
+        playAudio(data.audioBase64, data.responseText, messages.length + 1);
       }
     } catch (err) {
       console.error('Failed to process message:', err);
@@ -292,11 +367,11 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
         </div>
 
         {/* System Capabilities / Provider Status Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-950/40 px-6 py-2.5 text-xs font-mono">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-slate-950/60 px-6 py-2.5 text-xs font-mono">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="flex items-center gap-1.5 text-slate-400">
               <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-              <span className="text-slate-300">Gemini 2.5 Flash</span>
+              <span className="text-slate-300">Gemini Flash Lite</span>
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
             </span>
 
@@ -308,7 +383,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
 
             <span className="flex items-center gap-1.5 text-slate-400">
               <Volume2 className="h-3.5 w-3.5 text-amber-400" />
-              <span className="text-slate-300">ElevenLabs Flash</span>
+              <span className="text-slate-300">ElevenLabs & Neural Audio</span>
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
             </span>
 
@@ -319,12 +394,29 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
             </span>
           </div>
 
-          {isPlayingAudio && (
-            <div className="flex items-center gap-1.5 text-cyan-400 text-[11px] animate-pulse">
-              <Volume2 className="h-3.5 w-3.5" />
-              <span>TRANSMITTING AUDIO STREAM</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {isPlayingAudio ? (
+              <div className="flex items-center gap-2 text-cyan-400 text-[11px] bg-cyan-950/60 border border-cyan-800/60 px-2.5 py-1 rounded-full animate-pulse">
+                <div className="flex items-center gap-0.5">
+                  <span className="h-3 w-0.5 bg-cyan-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="h-4 w-0.5 bg-cyan-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="h-2.5 w-0.5 bg-cyan-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="h-3.5 w-0.5 bg-cyan-400 animate-bounce" style={{ animationDelay: '75ms' }} />
+                </div>
+                <span>TRANSMITTING LIVE VOICE</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleTestSoundCheck}
+                className="flex items-center gap-1.5 text-[11px] text-slate-300 hover:text-cyan-400 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 px-2.5 py-1 rounded-full transition-colors cursor-pointer"
+                title="Click to test your speaker/audio output"
+              >
+                <Volume2 className="h-3 w-3 text-cyan-400" />
+                <span>Test Speaker</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tab Selector */}
@@ -396,12 +488,20 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
                         <div className="mt-2 pt-1.5 border-t border-slate-700/60 flex items-center justify-between">
                           <button
                             type="button"
-                            onClick={() => playAudio(m.audioBase64, m.text)}
-                            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer group"
+                            onClick={() => playAudio(m.audioBase64, m.text, idx)}
+                            className={`inline-flex items-center gap-1.5 text-[11px] font-medium transition-colors cursor-pointer group ${
+                              activePlayingId === idx && isPlayingAudio
+                                ? 'text-amber-400 font-bold animate-pulse'
+                                : 'text-cyan-400 hover:text-cyan-300'
+                            }`}
                             title="Click to play synthesized voice audio"
                           >
                             <Volume2 className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
-                            <span>🔊 Listen to Voice</span>
+                            <span>
+                              {activePlayingId === idx && isPlayingAudio
+                                ? '🔊 Broadcasting Audio...'
+                                : '🔊 Listen to Voice'}
+                            </span>
                           </button>
                         </div>
                       )}

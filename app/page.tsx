@@ -2,15 +2,16 @@
  * HYDRO MATRIX: Flood Simulation and Early Warning Dashboard
  * Primary Crisis Command Center Page Layout
  * Localization: Guwahati — Bahini/Bharalu Basin
- * 
+ *
  * Architecture & Coordination:
- * - Master Physics Loop Driver: Dispatches tick-based physics steps via requestAnimationFrame / interval
+ * - Master Physics Loop Driver: Dispatches tick-based physics steps via interval
  *   scaled dynamically by playback speed (1x, 2x, 5x, 10x).
+ * - Supabase Persistence: Session lifecycle, telemetry batching, benchmark caching
  * - Multi-Drawer Responsive Layout:
  *   - Left: Scenario Configurator, Rainfall Modulation, 20 GMDA Pumps & Disaster Injection Suite
  *   - Center: 2.5D Isometric & 2D Top-Down Interactive Geospatial Viewport with 5 Primary Channels
  *   - Right: Telemetry & Analytics, 18 AWS Real-time Feed, and Recharts Progression Curves
- * - Modal Overlays: GMDA Info Narrative, Scenario Comparison Matrix, Evacuation Advisor, Situation Report (SitRep)
+ * - Modal Overlays: GMDA Info Narrative, Scenario Comparison Matrix, Evacuation Advisor, SitRep
  */
 
 'use client';
@@ -18,6 +19,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
+import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 import { Header } from '@/components/dashboard/Header';
 import { LeftDrawer } from '@/components/dashboard/LeftDrawer';
 import { RightDrawer } from '@/components/dashboard/RightDrawer';
@@ -27,7 +29,6 @@ import { EvacuationAdvisor } from '@/components/dashboard/EvacuationAdvisor';
 import { SitRepModal } from '@/components/dashboard/SitRepModal';
 import { GMDAInfoModal } from '@/components/dashboard/GMDAInfoModal';
 import { EmergencyVoiceHelplineModal } from '@/components/dashboard/EmergencyVoiceHelplineModal';
-
 
 export default function CrisisCommandPage() {
   const {
@@ -39,15 +40,34 @@ export default function CrisisCommandPage() {
   } = useFloodSimulation();
 
   const { playTacticalAlertSound } = useUIContext();
+  const { startSession, recordTelemetryTick, flushSession, saveBenchmarks } =
+    useSessionPersistence();
 
   const prevCritCountRef = useRef<number>(criticalZoneCount);
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
 
-  // Pre-calculate scenario comparison benchmarks on mount
+  // ── On mount: start DB session + pre-compute benchmarks ──────────────────
   useEffect(() => {
+    startSession();
     generateComparisonBenchmarks();
-  }, [generateComparisonBenchmarks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Sound tactical sirens when new critical zones breach threshold
+  // ── Save benchmarks after they are computed ───────────────────────────────
+  useEffect(() => {
+    saveBenchmarks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // runs once after mount; benchmarks are generated synchronously above
+
+  // ── Flush session to DB when simulation pauses ────────────────────────────
+  useEffect(() => {
+    if (!isPlaying) {
+      flushSession();
+    }
+  }, [isPlaying, flushSession]);
+
+  // ── Sound tactical sirens when new critical zones breach threshold ─────────
   useEffect(() => {
     if (criticalZoneCount > prevCritCountRef.current) {
       playTacticalAlertSound('critical');
@@ -58,7 +78,8 @@ export default function CrisisCommandPage() {
   /**
    * High-Precision Physics Clock Loop:
    * Drives discrete time evolution of the 2D shallow water diffusive wave equations.
-   * Base rate: 1 tick = 1000ms at 1x speed, scaling up to 100ms at 10x speed.
+   * Base rate: 1 tick = 900ms at 1x speed, scaling down to 90ms at 10x speed.
+   * Persists a telemetry point to Supabase every 5 ticks.
    */
   useEffect(() => {
     if (!isPlaying) return;
@@ -67,10 +88,12 @@ export default function CrisisCommandPage() {
 
     const timer = setInterval(() => {
       stepForward();
+      const tick = useFloodSimulation.getState().currentTick;
+      recordTelemetryTick(tick);
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [isPlaying, playbackSpeed, stepForward]);
+  }, [isPlaying, playbackSpeed, stepForward, recordTelemetryTick]);
 
   return (
     <main className="relative flex flex-col h-screen w-screen overflow-hidden bg-slate-950 font-sans text-slate-100">
@@ -100,4 +123,3 @@ export default function CrisisCommandPage() {
     </main>
   );
 }
-

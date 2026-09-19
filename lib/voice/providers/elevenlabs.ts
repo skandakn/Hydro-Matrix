@@ -45,12 +45,48 @@ export class ElevenLabsVoiceProvider {
           return Buffer.from(arrayBuffer);
         }
 
-        console.error(`[ElevenLabs] TTS error status with voice ${voiceId}:`, res.status, await res.text());
+        const errText = await res.text();
+        console.warn(`[ElevenLabs] TTS error status with voice ${voiceId}:`, res.status, errText);
       } catch (err) {
-        console.error(`[ElevenLabs] TTS exception with voice ${voiceId}:`, err);
+        console.warn(`[ElevenLabs] TTS exception with voice ${voiceId}:`, err);
       }
+    }
+
+    // High-fidelity fallback if ElevenLabs quota is exceeded or unavailable
+    return this.synthesizeWithFallback(text);
+  }
+
+  private async synthesizeWithFallback(text: string): Promise<Buffer | null> {
+    try {
+      // Split into clean sentence chunks for seamless TTS stream
+      const chunks = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+      const buffers: Buffer[] = [];
+
+      for (const chunk of chunks.slice(0, 4)) {
+        const trimmed = chunk.trim();
+        if (!trimmed) continue;
+        const encoded = encodeURIComponent(trimmed.slice(0, 190));
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-IN&client=tw-ob&q=${encoded}`;
+        
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
+          },
+        });
+
+        if (res.ok) {
+          const arrayBuffer = await res.arrayBuffer();
+          buffers.push(Buffer.from(arrayBuffer));
+        }
+      }
+
+      if (buffers.length > 0) {
+        console.log(`[TTS Fallback] Successfully synthesized ${buffers.length} audio chunks for emergency dispatch`);
+        return Buffer.concat(buffers);
+      }
+    } catch (e) {
+      console.error('[TTS Fallback] Synthesis error:', e);
     }
     return null;
   }
-
 }
