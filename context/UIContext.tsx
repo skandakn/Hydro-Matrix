@@ -30,8 +30,8 @@ interface UIContextType {
   playTacticalAlertSound: (severity: 'warning' | 'critical' | 'action') => void;
 
   // Modals & Panels
-  activeModal: 'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info';
-  setActiveModal: (modal: 'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info') => void;
+  activeModal: 'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info' | 'emergency_helpline';
+  setActiveModal: (modal: 'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info' | 'emergency_helpline') => void;
 
   // Fullscreen map mode
   isFullscreenMap: boolean;
@@ -44,7 +44,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(true);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(true);
   const [audioAlertsEnabled, setAudioAlertsEnabled] = useState(true);
-  const [activeModal, setActiveModal] = useState<'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info' | 'emergency_helpline'>('none');
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
 
   const [mapSettings, setMapSettings] = useState<MapViewSettings>({

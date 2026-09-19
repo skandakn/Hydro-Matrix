@@ -26,6 +26,8 @@ import { ComparisonModal } from '@/components/dashboard/ComparisonModal';
 import { EvacuationAdvisor } from '@/components/dashboard/EvacuationAdvisor';
 import { SitRepModal } from '@/components/dashboard/SitRepModal';
 import { GMDAInfoModal } from '@/components/dashboard/GMDAInfoModal';
+import { EmergencyVoiceHelplineModal } from '@/components/dashboard/EmergencyVoiceHelplineModal';
+
 
 export default function CrisisCommandPage() {
   const {
@@ -94,6 +96,8 @@ export default function CrisisCommandPage() {
       <ComparisonModal />
       <EvacuationAdvisor />
       <SitRepModal />
+      <EmergencyVoiceHelplineModal />
     </main>
   );
 }
+
