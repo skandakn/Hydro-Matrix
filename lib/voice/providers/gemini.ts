@@ -7,7 +7,7 @@ export class GeminiVoiceProvider {
 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY || '';
-    this.model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+    this.model = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
   }
 
@@ -44,9 +44,15 @@ Your role:
       },
     ];
 
-    const modelPool = [this.model, 'gemini-3.6-flash', 'gemini-1.5-flash'];
-    let responseText = '';
+    const modelPool = [
+      this.model,
+      'gemini-flash-lite-latest',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-3.6-flash',
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
 
+    let responseText = '';
 
     for (const m of modelPool) {
       try {
@@ -60,7 +66,7 @@ Your role:
             },
             generationConfig: {
               temperature: 0.3,
-              maxOutputTokens: 150,
+              maxOutputTokens: 500,
             },
           }),
         });
@@ -75,6 +81,7 @@ Your role:
         console.error(`[Gemini] Error with model ${m}:`, err);
       }
     }
+
 
     if (!responseText) {
       responseText =
