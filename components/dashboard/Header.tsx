@@ -13,6 +13,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
 import { Button } from '@/components/ui/button';
@@ -27,8 +29,10 @@ import {
   Users,
   Info,
   Building2,
+  LogIn,
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
+
 
 export const Header: React.FC = () => {
   const {
@@ -213,7 +217,42 @@ export const Header: React.FC = () => {
             <VolumeX className="h-4 w-4 text-slate-500" />
           )}
         </Button>
+
+        {/* Operator Authentication Control */}
+        <div className="flex items-center pl-2 ml-1 border-l border-slate-800">
+          <SignedIn>
+            <div className="flex items-center gap-2">
+              <span className="hidden xl:inline-flex items-center gap-1 rounded bg-emerald-950/60 px-2 py-0.5 text-[10px] font-mono text-emerald-300 border border-emerald-500/30">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                OP-ACTIVE
+              </span>
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "h-7 w-7 ring-2 ring-cyan-500/50 hover:ring-cyan-400 transition-all cursor-pointer",
+                    userButtonPopoverCard: "bg-slate-900 border border-slate-800 shadow-2xl text-slate-100",
+                    userButtonPopoverActionButtonText: "text-slate-200 text-xs",
+                    userButtonPopoverActionButtonIcon: "text-cyan-400",
+                    userButtonPopoverFooter: "hidden",
+                  },
+                }}
+              />
+            </div>
+          </SignedIn>
+          <SignedOut>
+            <Link
+              href="/sign-in"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/50 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/60 hover:border-cyan-400 hover:text-white transition-all shadow-sm shadow-cyan-500/20 group"
+              title="Operator Sign In"
+            >
+              <LogIn className="h-3.5 w-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Operator Sign In</span>
+            </Link>
+          </SignedOut>
+        </div>
       </div>
     </header>
+
   );
 };

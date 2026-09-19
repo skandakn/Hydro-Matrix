@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { UIProvider } from "@/context/UIContext";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
   title: "FLOWSHIELD | Flood Simulation & Early Warning Dashboard",
@@ -13,12 +14,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-slate-950 text-slate-100 min-h-screen overflow-hidden antialiased select-none">
-        <UIProvider>
-          {children}
-        </UIProvider>
-      </body>
-    </html>
+    <ClerkProvider
+      appearance={{
+        variables: {
+          colorPrimary: "#06b6d4",
+          colorBackground: "#0f172a",
+          colorText: "#f8fafc",
+          colorTextSecondary: "#94a3b8",
+          colorInputBackground: "#020617",
+          colorInputText: "#f8fafc",
+        },
+      }}
+    >
+      <html lang="en" className="dark">
+        <body className="bg-slate-950 text-slate-100 min-h-screen overflow-hidden antialiased select-none">
+          <UIProvider>
+            {children}
+          </UIProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
+
