@@ -1,12 +1,13 @@
 /**
  * FLOWSHIELD: Command Center Header Bar
+ * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Features:
- * - Brand identity with crisis command insignia
+ * - Brand identity with Guwahati Bahini/Bharalu crisis command insignia
+ * - Subtle UI badge for GMDA GIS-Based Drainage Ecosystem integration & EOI Master Plan
  * - Dynamic Alert Level beacon (Green / Amber / Flashing Crimson)
- * - Simulation time elapsed clock (T+HH:MM:SS) and tick indicator
- * - Modal action launchers: Scenario Comparison, Evacuation Dispatch, SitRep Report
- * - Tactical audio alarm mute/unmute toggle
+ * - Mission clock (T+HH:MM:SS) and tick indicator
+ * - Modal action launchers: GMDA Info, Scenario Comparison, Evacuation Dispatch, SitRep
  */
 
 'use client';
@@ -24,6 +25,8 @@ import {
   VolumeX,
   Clock,
   Users,
+  Info,
+  Building2,
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 
@@ -82,18 +85,34 @@ export const Header: React.FC = () => {
               <span className="font-extrabold text-sm md:text-base tracking-wider text-white">
                 FLOW<span className="text-cyan-400">SHIELD</span>
               </span>
-              <span className="hidden sm:inline-block rounded bg-cyan-950 px-1.5 py-0.5 text-[9px] font-mono font-bold text-cyan-300 border border-cyan-500/30">
-                v2.5 EARLY WARNING
+              <span className="rounded bg-cyan-950 px-1.5 py-0.5 text-[9px] font-mono font-bold text-cyan-300 border border-cyan-500/30">
+                GUWAHATI
               </span>
             </div>
             <p className="hidden md:block text-[10px] text-slate-400">
-              Flood Simulation & Crisis Command Operations Center
+              Bahini / Bharalu Basin • Real-Time Crisis Operations
             </p>
           </div>
         </div>
 
+        {/* Subtle GMDA GIS Drainage Ecosystem Badge */}
+        <button
+          onClick={() => {
+            setActiveModal('gmda_info');
+            playTacticalAlertSound('action');
+          }}
+          className="hidden xl:flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-950/40 px-2.5 py-1 text-[10px] font-medium text-cyan-300 transition-all hover:bg-cyan-900/50 hover:border-cyan-400 group cursor-pointer"
+          title="Click to view GMDA GIS Drainage Ecosystem & EOI DPR Master Plan Details"
+        >
+          <Building2 className="h-3 w-3 text-cyan-400" />
+          <span>GMDA GIS Drainage Ecosystem</span>
+          <span className="text-slate-500 font-mono">|</span>
+          <span className="text-slate-400 group-hover:text-cyan-200">EOI Master Plan</span>
+          <Info className="h-3 w-3 text-cyan-400 ml-0.5" />
+        </button>
+
         {/* Dynamic Threat Beacon */}
-        <div className="hidden lg:flex items-center gap-2 ml-4 pl-4 border-l border-slate-800">
+        <div className="hidden lg:flex items-center gap-2 ml-2 pl-3 border-l border-slate-800">
           <span className={`h-2.5 w-2.5 rounded-full ${status.dotColor}`} />
           <Badge variant={status.badgeVariant} className="text-[10px] tracking-wider font-mono">
             {status.label}
@@ -122,6 +141,21 @@ export const Header: React.FC = () => {
 
       {/* Right: Command Actions & Tooling */}
       <div className="flex items-center gap-1.5 md:gap-2">
+        {/* GMDA Info Modal trigger (mobile/compact icon) */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setActiveModal('gmda_info');
+            playTacticalAlertSound('action');
+          }}
+          className="gap-1.5 text-xs xl:hidden border-cyan-500/40 text-cyan-300"
+          title="GMDA Drainage Master Plan & EOI DPR Info"
+        >
+          <Building2 className="h-3.5 w-3.5 text-cyan-400" />
+          <span className="hidden sm:inline">GMDA Info</span>
+        </Button>
+
         {/* Scenario Comparison View Button */}
         <Button
           size="sm"
@@ -162,7 +196,7 @@ export const Header: React.FC = () => {
           className="gap-1.5 text-xs hidden lg:inline-flex border-slate-700 text-slate-300"
         >
           <FileText className="h-3.5 w-3.5 text-slate-400" />
-          <span>SitRep Report</span>
+          <span>SitRep</span>
         </Button>
 
         {/* Tactical Sound Siren Toggle */}

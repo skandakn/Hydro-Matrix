@@ -1,15 +1,16 @@
 /**
  * FLOWSHIELD: Flood Simulation and Early Warning Dashboard
  * Primary Crisis Command Center Page Layout
+ * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Architecture & Coordination:
  * - Master Physics Loop Driver: Dispatches tick-based physics steps via requestAnimationFrame / interval
  *   scaled dynamically by playback speed (1x, 2x, 5x, 10x).
  * - Multi-Drawer Responsive Layout:
- *   - Left: Scenario Configurator, Rainfall Modulation & Disaster Injection Suite
- *   - Center: 2.5D Isometric & 2D Top-Down Interactive Geospatial Viewport
- *   - Right: Telemetry & Analytics, Critical Watchlist, and Recharts Progression Curves
- * - Modal Overlays: Scenario Comparison Matrix, Evacuation Advisor, Situation Report (SitRep)
+ *   - Left: Scenario Configurator, Rainfall Modulation, 20 GMDA Pumps & Disaster Injection Suite
+ *   - Center: 2.5D Isometric & 2D Top-Down Interactive Geospatial Viewport with 5 Primary Channels
+ *   - Right: Telemetry & Analytics, 18 AWS Real-time Feed, and Recharts Progression Curves
+ * - Modal Overlays: GMDA Info Narrative, Scenario Comparison Matrix, Evacuation Advisor, Situation Report (SitRep)
  */
 
 'use client';
@@ -24,6 +25,7 @@ import { FloodMap2D5 } from '@/components/map/FloodMap2D5';
 import { ComparisonModal } from '@/components/dashboard/ComparisonModal';
 import { EvacuationAdvisor } from '@/components/dashboard/EvacuationAdvisor';
 import { SitRepModal } from '@/components/dashboard/SitRepModal';
+import { GMDAInfoModal } from '@/components/dashboard/GMDAInfoModal';
 
 export default function CrisisCommandPage() {
   const {
@@ -59,7 +61,6 @@ export default function CrisisCommandPage() {
   useEffect(() => {
     if (!isPlaying) return;
 
-    // Interval time in milliseconds based on speed multiplier
     const intervalMs = Math.max(90, Math.round(900 / playbackSpeed));
 
     const timer = setInterval(() => {
@@ -76,7 +77,7 @@ export default function CrisisCommandPage() {
 
       {/* 2. Main Operative Body (Left Drawer, Interactive Viewport, Right Drawer) */}
       <div className="relative flex flex-1 h-[calc(100vh-3.5rem)] w-full overflow-hidden">
-        {/* Left Drawer: Scenario Selector & Hydraulic Controls */}
+        {/* Left Drawer: Scenario Selector, 20 GMDA Pumps & Hydraulic Controls */}
         <LeftDrawer />
 
         {/* Central Viewport: 2.5D Volumetric Grid Canvas */}
@@ -84,11 +85,12 @@ export default function CrisisCommandPage() {
           <FloodMap2D5 />
         </div>
 
-        {/* Right Drawer: Live Telemetry, Recharts Graphs & Critical Watchlist */}
+        {/* Right Drawer: Live Telemetry, 18 AWS Sensor Feeds & Critical Watchlist */}
         <RightDrawer />
       </div>
 
       {/* 3. Modal Overlays */}
+      <GMDAInfoModal />
       <ComparisonModal />
       <EvacuationAdvisor />
       <SitRepModal />

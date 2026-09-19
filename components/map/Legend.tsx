@@ -3,51 +3,82 @@ import { Waves } from 'lucide-react';
 
 export const Legend: React.FC = () => {
   return (
-    <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-2 rounded-lg border border-slate-800/80 bg-slate-950/85 p-3 text-xs shadow-xl backdrop-blur-md">
+    <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-2 rounded-xl border border-slate-800/90 bg-slate-950/90 p-3 text-xs shadow-2xl backdrop-blur-md max-w-xs md:max-w-sm">
       <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 font-semibold text-slate-200">
         <span className="flex items-center gap-1.5">
           <Waves className="h-3.5 w-3.5 text-cyan-400" />
-          Tactical Map Legend
+          Guwahati — Bahini / Bharalu Basin
         </span>
-        <span className="text-[10px] text-slate-400">2.5D GRID</span>
+        <span className="text-[9px] font-mono text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 rounded border border-cyan-500/30">
+          GMDA GIS GRID
+        </span>
       </div>
 
-      {/* Water Inundation Levels */}
+      {/* 5 Government-Recognized Primary Drainage Channels */}
       <div className="space-y-1">
-        <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Inundation Depth</div>
-        <div className="grid grid-cols-3 gap-1 text-[11px]">
-          <div className="flex items-center gap-1.5 rounded bg-emerald-950/40 px-2 py-1 border border-emerald-500/30">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
-            <span className="text-emerald-300 font-medium">Safe (&lt;0.25m)</span>
+        <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+          5 Primary Drainage Channels
+        </div>
+        <div className="grid grid-cols-2 gap-1 text-[10px]">
+          <div className="flex items-center gap-1.5 rounded bg-slate-900/60 px-1.5 py-0.5 border border-cyan-500/30">
+            <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#06b6d4]" />
+            <span className="text-cyan-300 font-medium truncate">Bharalu (ভৰলু)</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded bg-amber-950/40 px-2 py-1 border border-amber-500/30">
+          <div className="flex items-center gap-1.5 rounded bg-slate-900/60 px-1.5 py-0.5 border border-amber-500/30">
             <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
-            <span className="text-amber-300 font-medium">Warn (0.25-0.75m)</span>
+            <span className="text-amber-300 font-medium truncate">Bahini (বাহিনী)</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded bg-rose-950/40 px-2 py-1 border border-rose-500/30">
-            <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse" />
-            <span className="text-rose-300 font-medium">Crit (&gt;0.75m)</span>
+          <div className="flex items-center gap-1.5 rounded bg-slate-900/60 px-1.5 py-0.5 border border-emerald-500/30">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
+            <span className="text-emerald-300 font-medium truncate">Basistha (বশিষ্ঠ)</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded bg-slate-900/60 px-1.5 py-0.5 border border-blue-500/30">
+            <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_6px_#3b82f6]" />
+            <span className="text-blue-300 font-medium truncate">Mora Bharalu (মৰা)</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded bg-slate-900/60 px-1.5 py-0.5 border border-purple-500/30 col-span-2">
+            <span className="h-2 w-2 rounded-full bg-purple-400 shadow-[0_0_6px_#a855f7]" />
+            <span className="text-purple-300 font-medium truncate">Lakhimijan (Deepor Beel Northern Outlet)</span>
           </div>
         </div>
       </div>
 
-      {/* Infrastructure Symbols */}
-      <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-800 text-[10px] text-slate-300">
-        <div className="flex items-center gap-1">
-          <span className="flex h-4 w-4 items-center justify-center rounded bg-rose-900/60 text-[9px] font-bold text-rose-300">H</span>
-          <span>Hospital</span>
+      {/* Inundation Depth Scale */}
+      <div className="space-y-1 pt-1 border-t border-slate-800">
+        <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Inundation Depth</div>
+        <div className="grid grid-cols-3 gap-1 text-[10px]">
+          <div className="flex items-center gap-1 rounded bg-emerald-950/40 px-1.5 py-0.5 border border-emerald-500/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_#10b981]" />
+            <span className="text-emerald-300 font-medium">&lt;0.25m Safe</span>
+          </div>
+          <div className="flex items-center gap-1 rounded bg-amber-950/40 px-1.5 py-0.5 border border-amber-500/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_#f59e0b]" />
+            <span className="text-amber-300 font-medium">0.25-0.75m</span>
+          </div>
+          <div className="flex items-center gap-1 rounded bg-rose-950/40 px-1.5 py-0.5 border border-rose-500/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_#f43f5e] animate-pulse" />
+            <span className="text-rose-300 font-medium">&gt;0.75m Crit</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="flex h-4 w-4 items-center justify-center rounded bg-amber-900/60 text-[9px] font-bold text-amber-300">⚡</span>
-          <span>Power</span>
+      </div>
+
+      {/* Hardware & Strategic Facilities */}
+      <div className="grid grid-cols-4 gap-1 pt-1 border-t border-slate-800 text-[10px] text-slate-300">
+        <div className="flex items-center gap-1" title="20 GMDA Auto-Priming Dewatering Pumps">
+          <span>🌀</span>
+          <span className="text-cyan-300">GMDA Pump</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="flex h-4 w-4 items-center justify-center rounded bg-cyan-900/60 text-[9px] font-bold text-cyan-300">🌀</span>
-          <span>Pump</span>
+        <div className="flex items-center gap-1" title="18 Automatic Weather Stations (AWS)">
+          <span>📡</span>
+          <span className="text-amber-300">AWS Station</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="flex h-4 w-4 items-center justify-center rounded bg-emerald-900/60 text-[9px] font-bold text-emerald-300">🛡️</span>
-          <span>Shelter</span>
+        <div className="flex items-center gap-1" title="Deepor Beel Ramsar Wetland">
+          <span>🌿</span>
+          <span className="text-emerald-300">Deepor Beel</span>
+        </div>
+        <div className="flex items-center gap-1" title="Assam Secretariat & Hospitals">
+          <span>🏛️</span>
+          <span>Capital / GMCH</span>
         </div>
       </div>
     </div>

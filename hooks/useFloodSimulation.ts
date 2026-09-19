@@ -1,13 +1,13 @@
 /**
  * FLOWSHIELD: useFloodSimulation (Zustand State Store & Physics Loop Hook)
+ * Localization: Guwahati — Bahini/Bharalu Basin
  * 
- * Manages:
- * - Frame-by-frame simulation tick execution
- * - Bidirectional timeline scrubbing (history buffer for forward/rewind time travel)
- * - Dynamic parameter modulation (rainfall, drainage capacity, soil permeability)
- * - Disaster injection (drainage failure, canal debris blockage, flash pulse)
- * - Civil defense actions (sandbag flood barriers, evacuation orders)
- * - Live telemetry aggregation for Recharts and crisis HUD
+ * Features:
+ * - Live data feeds from 18 Automatic Weather Stations (AWS) around Guwahati
+ * - Interactive toggles for 20 GMDA Auto-Priming Dewatering Pumps
+ * - Disaster scenarios: GMDA pump grid blackout, Brahmaputra sluice gate backflow
+ * - Channel tracking for Bharalu, Mora Bharalu, Basistha, Bahini, Lakhimijan
+ * - Bidirectional time travel scrubber & comparative benchmarking
  */
 
 'use client';
@@ -21,12 +21,18 @@ import {
   DisasterType,
   TelemetryPoint,
   ScenarioComparisonRecord,
+  AutomaticWeatherStation,
+  GMDAPumpStation,
 } from '@/types/simulation';
-import { generateCityGrid } from '@/lib/simulation-engine/cityGrid';
+import {
+  generateCityGrid,
+  GUWAHATI_AWS_STATIONS,
+  GMDA_PUMP_STATIONS,
+} from '@/lib/simulation-engine/cityGrid';
 import { stepSimulationPhysics } from '@/lib/simulation-engine/physics';
 import { PRESET_SCENARIOS } from '@/lib/simulation-engine/scenarios';
 
-const MAX_HISTORY_BUFFER = 400; // Stores up to ~6.5 hours of simulated crisis history
+const MAX_HISTORY_BUFFER = 400;
 
 export interface FloodSimulationStore {
   // --- Simulation State ---
@@ -35,9 +41,16 @@ export interface FloodSimulationStore {
   maxRecordedTick: number;
   elapsedSeconds: number;
   isPlaying: boolean;
-  playbackSpeed: number; // 0.5, 1, 2, 5, 10
+  playbackSpeed: number;
   activeScenarioId: string;
   config: SimulationConfig;
+
+  // --- Guwahati Real-World Hardware & Telemetry ---
+  weatherStations: AutomaticWeatherStation[];
+  gmdaPumps: GMDAPumpStation[];
+  activePumpIds: Set<string>;
+  bahiniBharaluFlowM3S: number;
+  activePumpsCount: number;
 
   // --- Telemetry & History ---
   history: SimulationSnapshot[];
@@ -68,6 +81,10 @@ export interface FloodSimulationStore {
   setRainfallIntensity: (mmPerHour: number) => void;
   setDrainageEfficiency: (efficiency: number) => void;
   setCriticalThreshold: (thresholdMeters: number) => void;
+  setBrahmaputraSluiceGate: (isOpen: boolean) => void;
+  toggleGMDAPump: (pumpId: string) => void;
+  setAllGMDAPumpsState: (active: boolean) => void;
+  simulateGMDAPumpsFailure: () => void;
   loadScenario: (presetId: string) => void;
   resetSimulation: () => void;
   injectDisaster: (type: DisasterType) => void;
@@ -80,30 +97,35 @@ export interface FloodSimulationStore {
 }
 
 const DEFAULT_CONFIG: SimulationConfig = {
-  rainfallIntensity: 22, // mm/hour
-  timeStepSeconds: 60,   // 60 seconds of real-world storm evolution per tick
+  rainfallIntensity: 25, // mm/hour
+  timeStepSeconds: 60,
   speedMultiplier: 1,
   criticalThreshold: 0.75, // meters
   warningThreshold: 0.25,  // meters
-  drainageSystemEfficiency: 1.0, // 100% capacity
-  surfaceRoughness: 0.040,       // Manning's n
-  soilAbsorptionRate: 18,        // mm/hour infiltration
-  coastalSurgeHead: 0.0,         // meters
+  drainageSystemEfficiency: 1.0,
+  surfaceRoughness: 0.042, // Manning's n for urban channels with siltation
+  soilAbsorptionRate: 15,
+  coastalSurgeHead: 0.0,
+  brahmaputraFloodStageMeters: 48.2, // Normal river stage
+  sluiceGateOpen: true, // Bharalumukh sluice open
 };
 
 export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
   const initialGrid = generateCityGrid();
+  const initialPumps = [...GMDA_PUMP_STATIONS];
+  const initialActivePumps = new Set<string>(initialPumps.map(p => p.id));
+  const initialStations = [...GUWAHATI_AWS_STATIONS];
 
   const initialSnapshot: SimulationSnapshot = {
     tick: 0,
     elapsedSeconds: 0,
     grid: initialGrid,
-    floodedAreaSqKm: 0.12,
+    floodedAreaSqKm: 0.18,
     affectedPopulation: 0,
     criticalZoneCount: 0,
     warningZoneCount: 0,
-    maxWaterDepth: 0.20,
-    maxFlowVelocity: 0.15,
+    maxWaterDepth: 0.35,
+    maxFlowVelocity: 0.22,
     totalDrainedVolume: 0,
     timestamp: Date.now(),
   };
@@ -111,12 +133,14 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
   const initialTelemetry: TelemetryPoint = {
     timeLabel: '00:00',
     elapsedMinutes: 0,
-    floodedAreaSqKm: 0.12,
+    floodedAreaSqKm: 0.18,
     affectedPopulation: 0,
     criticalZones: 0,
     warningZones: 0,
-    maxWaterDepth: 0.20,
+    maxWaterDepth: 0.35,
     avgDrainageEfficiency: 100,
+    bahiniBharaluFlowM3S: 32.5,
+    activePumpsCount: 20,
   };
 
   return {
@@ -126,18 +150,25 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
     elapsedSeconds: 0,
     isPlaying: false,
     playbackSpeed: 1,
-    activeScenarioId: 'normal-rain',
+    activeScenarioId: 'guwahati-monsoon',
     config: DEFAULT_CONFIG,
+
+    weatherStations: initialStations,
+    gmdaPumps: initialPumps,
+    activePumpIds: initialActivePumps,
+    bahiniBharaluFlowM3S: 32.5,
+    activePumpsCount: 20,
+
     history: [initialSnapshot],
     telemetryHistory: [initialTelemetry],
     activeDisasters: [],
     selectedCellId: null,
-    floodedAreaSqKm: 0.12,
+    floodedAreaSqKm: 0.18,
     affectedPopulation: 0,
     criticalZoneCount: 0,
     warningZoneCount: 0,
-    maxWaterDepth: 0.20,
-    maxFlowVelocity: 0.15,
+    maxWaterDepth: 0.35,
+    maxFlowVelocity: 0.22,
     totalDrainedVolume: 0,
     comparisonData: [],
 
@@ -145,16 +176,24 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
     pauseSimulation: () => set({ isPlaying: false }),
     togglePlayPause: () => set(state => ({ isPlaying: !state.isPlaying })),
 
-    /**
-     * Advances simulation by one physics timestep.
-     * If currently scrubbing inside recorded history, reads from next historical snapshot.
-     * Otherwise, executes a new physics step through the numerical engine.
-     */
     stepForward: () => {
       const state = get();
       const nextTick = state.currentTick + 1;
 
-      // Case A: User was viewing past history and is stepping forward through recorded frames
+      // Update simulated live AWS weather readings
+      const updatedStations = state.weatherStations.map(station => {
+        const jitter = (Math.sin(nextTick * 0.3 + station.elevationMeters) * 4.0);
+        const rain = Math.max(0, state.config.rainfallIntensity * (station.elevationMeters > 60 ? 1.25 : 1.0) + jitter);
+        const acc = station.accumulatedRainfall24hMm + (rain / 60);
+        return {
+          ...station,
+          rainfallMmHr: parseFloat(rain.toFixed(1)),
+          accumulatedRainfall24hMm: parseFloat(acc.toFixed(1)),
+          lastPing: 'Just now',
+        };
+      });
+
+      // Scrubbing inside history
       if (nextTick <= state.maxRecordedTick && state.history[nextTick]) {
         const snap = state.history[nextTick];
         set({
@@ -168,17 +207,31 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
           maxWaterDepth: snap.maxWaterDepth,
           maxFlowVelocity: snap.maxFlowVelocity,
           totalDrainedVolume: snap.totalDrainedVolume,
+          weatherStations: updatedStations,
         });
         return;
       }
 
-      // Case B: Compute new physics timestep
-      const physicsResult = stepSimulationPhysics(state.grid, state.config);
+      // Execute discrete physics step
+      const physicsResult = stepSimulationPhysics(state.grid, state.config, state.activePumpIds);
       const newElapsed = state.elapsedSeconds + state.config.timeStepSeconds;
       const elapsedMins = Math.floor(newElapsed / 60);
       const hours = Math.floor(elapsedMins / 60);
       const mins = elapsedMins % 60;
       const timeLabel = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+
+      // Update pump operational metrics
+      const updatedPumps: GMDAPumpStation[] = state.gmdaPumps.map(pump => {
+        const isArmed = state.activePumpIds.has(pump.id);
+        const cell = physicsResult.nextGrid.find(n => n.x === pump.gridX && n.y === pump.gridY);
+        const hasWater = cell ? cell.currentWaterLevel >= pump.waterLevelTriggerMeters : false;
+        const pumpStatus: 'ACTIVE' | 'STANDBY' | 'FAILED' | 'OFFLINE' = !isArmed ? 'OFFLINE' : hasWater ? 'ACTIVE' : 'STANDBY';
+        return {
+          ...pump,
+          status: pumpStatus,
+          dischargeM3Hr: isArmed && hasWater ? Math.round(pump.capacityM3Hr * (0.9 + Math.random() * 0.1)) : 0,
+        };
+      });
 
       const newSnapshot: SimulationSnapshot = {
         tick: nextTick,
@@ -203,19 +256,15 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         warningZones: physicsResult.warningZoneCount,
         maxWaterDepth: physicsResult.maxWaterDepth,
         avgDrainageEfficiency: Math.round(state.config.drainageSystemEfficiency * 100),
+        bahiniBharaluFlowM3S: physicsResult.bahiniBharaluFlowM3S,
+        activePumpsCount: physicsResult.activePumpsCount,
       };
 
-      // Maintain rolling history buffer
       const updatedHistory = [...state.history, newSnapshot];
-      if (updatedHistory.length > MAX_HISTORY_BUFFER) {
-        updatedHistory.shift();
-      }
+      if (updatedHistory.length > MAX_HISTORY_BUFFER) updatedHistory.shift();
 
-      // Keep up to 60 telemetry points for smooth charting
       const updatedTelemetry = [...state.telemetryHistory, newTelemetryPoint];
-      if (updatedTelemetry.length > 60) {
-        updatedTelemetry.shift();
-      }
+      if (updatedTelemetry.length > 60) updatedTelemetry.shift();
 
       set({
         grid: physicsResult.nextGrid,
@@ -229,6 +278,10 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         maxWaterDepth: physicsResult.maxWaterDepth,
         maxFlowVelocity: physicsResult.maxFlowVelocity,
         totalDrainedVolume: physicsResult.totalDrainedVolume,
+        bahiniBharaluFlowM3S: physicsResult.bahiniBharaluFlowM3S,
+        activePumpsCount: physicsResult.activePumpsCount,
+        gmdaPumps: updatedPumps,
+        weatherStations: updatedStations,
         history: updatedHistory,
         telemetryHistory: updatedTelemetry,
       });
@@ -255,9 +308,6 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       }
     },
 
-    /**
-     * Interactive Time Slider Scrubbing (Forward / Rewind)
-     */
     jumpToTick: (targetTick: number) => {
       const state = get();
       const clampedTick = Math.max(0, Math.min(targetTick, state.maxRecordedTick));
@@ -281,9 +331,16 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
     setPlaybackSpeed: (speed: number) => set({ playbackSpeed: speed }),
 
     setRainfallIntensity: (mmPerHour: number) => {
-      set(state => ({
-        config: { ...state.config, rainfallIntensity: mmPerHour },
-      }));
+      set(state => {
+        const updatedStations = state.weatherStations.map(st => ({
+          ...st,
+          rainfallMmHr: parseFloat((mmPerHour * (st.elevationMeters > 60 ? 1.25 : 1.0)).toFixed(1)),
+        }));
+        return {
+          config: { ...state.config, rainfallIntensity: mmPerHour },
+          weatherStations: updatedStations,
+        };
+      });
     },
 
     setDrainageEfficiency: (efficiency: number) => {
@@ -298,35 +355,96 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       }));
     },
 
+    setBrahmaputraSluiceGate: (isOpen: boolean) => {
+      set(state => ({
+        config: { ...state.config, sluiceGateOpen: isOpen },
+      }));
+    },
+
     /**
-     * Loads a pre-calibrated crisis scenario preset
+     * Toggle individual GMDA auto-priming pump
      */
+    toggleGMDAPump: (pumpId: string) => {
+      set(state => {
+        const nextSet = new Set(state.activePumpIds);
+        if (nextSet.has(pumpId)) {
+          nextSet.delete(pumpId);
+        } else {
+          nextSet.add(pumpId);
+        }
+        const updatedPumps = state.gmdaPumps.map(p =>
+          p.id === pumpId
+            ? { ...p, status: (nextSet.has(pumpId) ? 'ACTIVE' : 'OFFLINE') as 'ACTIVE' | 'OFFLINE' }
+            : p
+        );
+        return {
+          activePumpIds: nextSet,
+          gmdaPumps: updatedPumps,
+          activePumpsCount: nextSet.size,
+        };
+      });
+    },
+
+    /**
+     * Master switch for all 20 GMDA auto-priming pumps
+     */
+    setAllGMDAPumpsState: (active: boolean) => {
+      set(state => {
+        const nextSet = active ? new Set(state.gmdaPumps.map(p => p.id)) : new Set<string>();
+        const updatedPumps = state.gmdaPumps.map(p => ({
+          ...p,
+          status: (active ? 'ACTIVE' : 'OFFLINE') as 'ACTIVE' | 'OFFLINE',
+        }));
+        return {
+          activePumpIds: nextSet,
+          gmdaPumps: updatedPumps,
+          activePumpsCount: nextSet.size,
+        };
+      });
+    },
+
+    /**
+     * Disaster Scenario: Simulate 20 GMDA Auto-Priming Pumps Failing
+     */
+    simulateGMDAPumpsFailure: () => {
+      const state = get();
+      state.injectDisaster('GMDA_PUMP_GRID_BLACKOUT');
+    },
+
     loadScenario: (presetId: string) => {
       const preset = PRESET_SCENARIOS.find(p => p.id === presetId);
       if (!preset) return;
 
       const freshGrid = generateCityGrid();
 
-      // Apply initial blocked coordinates if designated
-      if (preset.blockedDrainCoordinates && preset.blockedDrainCoordinates.length > 0) {
+      if (preset.blockedDrainCoordinates) {
         for (const coord of preset.blockedDrainCoordinates) {
           const target = freshGrid.find(n => n.x === coord.x && n.y === coord.y);
-          if (target) {
-            target.drainBlocked = true;
-          }
+          if (target) target.drainBlocked = true;
         }
       }
+
+      // If preset has pumps offline
+      const pumpsActive = !preset.pumpsOffline;
+      const initialActive = pumpsActive
+        ? new Set(GMDA_PUMP_STATIONS.map(p => p.id))
+        : new Set<string>();
+
+      const updatedPumps = GMDA_PUMP_STATIONS.map(p => ({
+        ...p,
+        status: (pumpsActive ? 'ACTIVE' : 'FAILED') as 'ACTIVE' | 'FAILED',
+      }));
 
       const freshSnapshot: SimulationSnapshot = {
         tick: 0,
         elapsedSeconds: 0,
         grid: freshGrid,
-        floodedAreaSqKm: 0.12,
+        floodedAreaSqKm: 0.18,
         affectedPopulation: 0,
         criticalZoneCount: 0,
         warningZoneCount: 0,
-        maxWaterDepth: 0.20,
-        maxFlowVelocity: 0.15,
+        maxWaterDepth: 0.35,
+        maxFlowVelocity: 0.22,
         totalDrainedVolume: 0,
         timestamp: Date.now(),
       };
@@ -335,6 +453,9 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         isPlaying: false,
         activeScenarioId: preset.id,
         grid: freshGrid,
+        gmdaPumps: updatedPumps,
+        activePumpIds: initialActive,
+        activePumpsCount: initialActive.size,
         currentTick: 0,
         maxRecordedTick: 0,
         elapsedSeconds: 0,
@@ -342,12 +463,14 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         telemetryHistory: [{
           timeLabel: '00:00',
           elapsedMinutes: 0,
-          floodedAreaSqKm: 0.12,
+          floodedAreaSqKm: 0.18,
           affectedPopulation: 0,
           criticalZones: 0,
           warningZones: 0,
-          maxWaterDepth: 0.20,
+          maxWaterDepth: 0.35,
           avgDrainageEfficiency: Math.round(preset.drainageSystemEfficiency * 100),
+          bahiniBharaluFlowM3S: 32.5,
+          activePumpsCount: initialActive.size,
         }],
         activeDisasters: [],
         config: {
@@ -355,12 +478,14 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
           rainfallIntensity: preset.rainfallIntensity,
           drainageSystemEfficiency: preset.drainageSystemEfficiency,
           coastalSurgeHead: preset.coastalSurgeHead,
+          brahmaputraFloodStageMeters: preset.brahmaputraFloodStageMeters || 48.2,
+          sluiceGateOpen: preset.sluiceGateOpen !== undefined ? preset.sluiceGateOpen : true,
         },
-        floodedAreaSqKm: 0.12,
+        floodedAreaSqKm: 0.18,
         affectedPopulation: 0,
         criticalZoneCount: 0,
         warningZoneCount: 0,
-        maxWaterDepth: 0.20,
+        maxWaterDepth: 0.35,
       });
     },
 
@@ -369,21 +494,65 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       state.loadScenario(state.activeScenarioId);
     },
 
-    /**
-     * Disaster Injection Handlers
-     */
     injectDisaster: (type: DisasterType) => {
       const state = get();
       const tick = state.currentTick;
 
       switch (type) {
+        case 'GMDA_PUMP_GRID_BLACKOUT': {
+          const event: DisasterEvent = {
+            id: `disaster-${Date.now()}`,
+            type: 'GMDA_PUMP_GRID_BLACKOUT',
+            title: 'GMDA 20 Auto-Priming Pump Grid Blackout',
+            description: 'Major electrical substation failure knocks out all 20 GMDA auto-priming pumps across Anil Nagar, Nabin Nagar, and Rukminigaon.',
+            severity: 'CATASTROPHIC',
+            appliedAtTick: tick,
+            active: true,
+          };
+          const failedPumps = state.gmdaPumps.map(p => ({
+            ...p,
+            status: 'FAILED' as const,
+            dischargeM3Hr: 0,
+          }));
+          set({
+            activePumpIds: new Set<string>(),
+            gmdaPumps: failedPumps,
+            activePumpsCount: 0,
+            config: { ...state.config, drainageSystemEfficiency: 0.15 },
+            activeDisasters: [event, ...state.activeDisasters],
+          });
+          break;
+        }
+
+        case 'BRAHMAPUTRA_SLUICE_BACKFLOW': {
+          const event: DisasterEvent = {
+            id: `disaster-${Date.now()}`,
+            type: 'BRAHMAPUTRA_SLUICE_BACKFLOW',
+            title: 'Brahmaputra Danger Mark & Sluice Lock',
+            description: 'Brahmaputra river level reaches 50.8m MSL. Bharalumukh sluice gate locked to prevent river ingress, causing severe Bharalu backwater.',
+            severity: 'CATASTROPHIC',
+            appliedAtTick: tick,
+            active: true,
+          };
+          set({
+            config: {
+              ...state.config,
+              sluiceGateOpen: false,
+              brahmaputraFloodStageMeters: 50.8,
+              drainageSystemEfficiency: 0.40,
+            },
+            activeDisasters: [event, ...state.activeDisasters],
+          });
+          break;
+        }
+
         case 'DRAINAGE_FAILURE': {
           const event: DisasterEvent = {
             id: `disaster-${Date.now()}`,
             type: 'DRAINAGE_FAILURE',
-            title: 'Pump Grid Power Cascade Failure',
-            description: 'Substation outage reduced municipal stormwater drainage capacity by 80%.',
-            severity: 'CATASTROPHIC',
+            title: 'Municipal Drainage Sub-station Failure',
+            description: 'Urban drainage capacity reduced by 80% due to power cascade.',
+            severity: 'SEVERE',
             appliedAtTick: tick,
             active: true,
           };
@@ -395,11 +564,10 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         }
 
         case 'CHANNEL_BLOCKAGE': {
-          // Block downstream canal corridor
+          // Block Anil Nagar and Zoo Road culverts
           const blockCoords = [
-            { x: 7, y: 9 },
-            { x: 8, y: 9 },
-            { x: 7, y: 10 },
+            { x: 9, y: 6 }, // Zoo Road
+            { x: 8, y: 5 }, // Anil Nagar
           ];
           const updatedGrid = state.grid.map(node => {
             const isMatch = blockCoords.some(c => c.x === node.x && c.y === node.y);
@@ -408,11 +576,11 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
           const event: DisasterEvent = {
             id: `disaster-${Date.now()}`,
             type: 'CHANNEL_BLOCKAGE',
-            title: 'Debris Dam / Canal Choke',
-            description: 'Major treefall and debris clog the primary canal conduit [x:7, y:9].',
+            title: 'Zoo Road / Anil Nagar Silt & Debris Dam',
+            description: 'Heavy silt and solid waste block the Bahini-Bharalu transition culverts.',
             severity: 'SEVERE',
             appliedAtTick: tick,
-            affectedCells: ['cell-7-9', 'cell-8-9', 'cell-7-10'],
+            affectedCells: ['cell-9-6', 'cell-8-5'],
             active: true,
           };
           set({
@@ -426,35 +594,21 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
           const event: DisasterEvent = {
             id: `disaster-${Date.now()}`,
             type: 'CLOUDBURST_SPIKE',
-            title: 'Sudden Mesoscale Cloudburst',
-            description: 'Precipitation spiked to 180 mm/h over the central catchment.',
+            title: 'Khasi Foothills Cloudburst Spike',
+            description: 'Intense orographic storm cloud bursts 160 mm/h over Basistha catchment.',
             severity: 'CATASTROPHIC',
             appliedAtTick: tick,
             active: true,
           };
           set({
-            config: { ...state.config, rainfallIntensity: 180 },
+            config: { ...state.config, rainfallIntensity: 160 },
             activeDisasters: [event, ...state.activeDisasters],
           });
           break;
         }
 
-        case 'STORM_SURGE_BREACH': {
-          const event: DisasterEvent = {
-            id: `disaster-${Date.now()}`,
-            type: 'STORM_SURGE_BREACH',
-            title: 'Coastal Tidal Sea Surge',
-            description: 'Estuary boundary sea head surged to +1.4m, repelling river outflow.',
-            severity: 'SEVERE',
-            appliedAtTick: tick,
-            active: true,
-          };
-          set({
-            config: { ...state.config, coastalSurgeHead: 1.4 },
-            activeDisasters: [event, ...state.activeDisasters],
-          });
+        default:
           break;
-        }
       }
     },
 
@@ -463,18 +617,35 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       const disaster = state.activeDisasters.find(d => d.id === disasterId);
       if (!disaster) return;
 
-      // Revert parameters based on disaster type
-      if (disaster.type === 'DRAINAGE_FAILURE') {
-        set({ config: { ...state.config, drainageSystemEfficiency: 1.0 } });
-      } else if (disaster.type === 'CHANNEL_BLOCKAGE' && disaster.affectedCells) {
+      if (disaster.type === 'GMDA_PUMP_GRID_BLACKOUT') {
+        const armed = new Set(GMDA_PUMP_STATIONS.map(p => p.id));
+        const restored = GMDA_PUMP_STATIONS.map(p => ({ ...p, status: 'ACTIVE' as const }));
+        set({
+          activePumpIds: armed,
+          gmdaPumps: restored,
+          activePumpsCount: 20,
+          config: { ...state.config, drainageSystemEfficiency: 1.0 },
+        });
+      } else if (disaster.type === 'BRAHMAPUTRA_SLUICE_BACKFLOW') {
+        set({
+          config: {
+            ...state.config,
+            sluiceGateOpen: true,
+            brahmaputraFloodStageMeters: 48.2,
+            drainageSystemEfficiency: 1.0,
+          },
+        });
+      } else if (disaster.type === 'CHANNEL_BLOCKAGE') {
         const updatedGrid = state.grid.map(node =>
-          disaster.affectedCells!.includes(node.id) ? { ...node, drainBlocked: false } : node
+          (node.x === 9 && node.y === 6) || (node.x === 8 && node.y === 5)
+            ? { ...node, drainBlocked: false }
+            : node
         );
         set({ grid: updatedGrid });
       } else if (disaster.type === 'CLOUDBURST_SPIKE') {
-        set({ config: { ...state.config, rainfallIntensity: 35 } });
-      } else if (disaster.type === 'STORM_SURGE_BREACH') {
-        set({ config: { ...state.config, coastalSurgeHead: 0.0 } });
+        set({ config: { ...state.config, rainfallIntensity: 25 } });
+      } else if (disaster.type === 'DRAINAGE_FAILURE') {
+        set({ config: { ...state.config, drainageSystemEfficiency: 1.0 } });
       }
 
       set({
@@ -510,10 +681,6 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       set({ selectedCellId: cellId });
     },
 
-    /**
-     * Fast-forward benchmark runs across all scenario presets to provide
-     * side-by-side comparative telemetry curves in the Comparison modal!
-     */
     generateComparisonBenchmarks: () => {
       const records: ScenarioComparisonRecord[] = PRESET_SCENARIOS.map(preset => {
         let simGrid = generateCityGrid();
@@ -529,7 +696,13 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
           rainfallIntensity: preset.rainfallIntensity,
           drainageSystemEfficiency: preset.drainageSystemEfficiency,
           coastalSurgeHead: preset.coastalSurgeHead,
+          brahmaputraFloodStageMeters: preset.brahmaputraFloodStageMeters || 48.2,
+          sluiceGateOpen: preset.sluiceGateOpen !== undefined ? preset.sluiceGateOpen : true,
         };
+
+        const activePumps = preset.pumpsOffline
+          ? new Set<string>()
+          : new Set(GMDA_PUMP_STATIONS.map(p => p.id));
 
         const dataPoints: TelemetryPoint[] = [];
         let peakArea = 0;
@@ -538,11 +711,10 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         let timeToFirstCrit: number | null = null;
         let compromisedInfra = 0;
 
-        // Run 15 fast ticks (representing 15 simulated minutes each, total ~3.5 hours)
         for (let t = 0; t <= 20; t++) {
-          const stepRes = stepSimulationPhysics(simGrid, simConfig);
+          const stepRes = stepSimulationPhysics(simGrid, simConfig, activePumps);
           simGrid = stepRes.nextGrid;
-          
+
           if (stepRes.floodedAreaSqKm > peakArea) peakArea = stepRes.floodedAreaSqKm;
           if (stepRes.affectedPopulation > peakPop) peakPop = stepRes.affectedPopulation;
           if (stepRes.maxWaterDepth > peakDepth) peakDepth = stepRes.maxWaterDepth;
@@ -563,10 +735,11 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
             warningZones: stepRes.warningZoneCount,
             maxWaterDepth: stepRes.maxWaterDepth,
             avgDrainageEfficiency: Math.round(preset.drainageSystemEfficiency * 100),
+            bahiniBharaluFlowM3S: stepRes.bahiniBharaluFlowM3S,
+            activePumpsCount: stepRes.activePumpsCount,
           });
         }
 
-        // Check compromised infrastructure
         for (const node of simGrid) {
           if (node.infrastructure && node.status === 'CRITICAL') {
             compromisedInfra++;

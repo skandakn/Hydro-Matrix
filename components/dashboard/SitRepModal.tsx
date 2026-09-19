@@ -1,5 +1,6 @@
 /**
  * FLOWSHIELD: Incident Situation Report (SitRep) Modal
+ * Localization: Guwahati — Bahini/Bharalu Basin
  * Generates an executive crisis debriefing report with live hydrological calculations.
  */
 
@@ -29,13 +30,14 @@ export const SitRepModal: React.FC = () => {
     maxWaterDepth,
     config,
     grid,
+    activePumpsCount,
+    bahiniBharaluFlowM3S,
   } = useFloodSimulation();
 
   const { activeModal, setActiveModal } = useUIContext();
 
   if (activeModal !== 'export_report') return null;
 
-  // Count compromised infrastructure
   const compromised = grid.filter(n => n.infrastructure && n.status === 'CRITICAL');
 
   return (
@@ -49,8 +51,8 @@ export const SitRepModal: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                Executive Incident Situation Report (SitRep)
-                <Badge variant="cyan" className="text-[10px]">OPERATIONAL</Badge>
+                Guwahati Basin Incident Situation Report (SitRep)
+                <Badge variant="cyan" className="text-[10px]">GMDA GIS DRAFT</Badge>
               </h3>
               <p className="text-xs text-slate-400">
                 Generated: {new Date().toISOString()} • Simulation T+{formatTime(elapsedSeconds)}
@@ -69,10 +71,10 @@ export const SitRepModal: React.FC = () => {
         <div className="flex-1 overflow-y-auto py-4 space-y-4 text-xs font-mono">
           <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-2">
             <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
-              1. EXECUTIVE CRISIS SUMMARY
+              1. EXECUTIVE CRISIS SUMMARY • GUWAHATI BAHINI/BHARALU BASIN
             </div>
             <p className="text-slate-300 leading-relaxed font-sans text-xs">
-              The FLOWSHIELD 2D Shallow Water numerical simulation model has computed {currentTick} discrete timesteps ({formatTime(elapsedSeconds)} elapsed). Current precipitation rate is calibrated at {config.rainfallIntensity} mm/h with municipal stormwater discharge operating at {Math.round(config.drainageSystemEfficiency * 100)}% nominal efficiency.
+              The FLOWSHIELD 2D Shallow Water numerical simulation model has computed {currentTick} discrete timesteps ({formatTime(elapsedSeconds)} elapsed) across the Guwahati metropolitan basin. Precipitation is calibrated at {config.rainfallIntensity} mm/h with {activePumpsCount}/20 GMDA auto-priming dewatering pumps operational. Bharalu arterial discharge is measured at {bahiniBharaluFlowM3S} m³/s with Bharalumukh sluice gate {config.sluiceGateOpen ? 'OPEN' : 'LOCKED'}.
             </p>
           </div>
 
@@ -97,12 +99,12 @@ export const SitRepModal: React.FC = () => {
 
           <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-2">
             <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
-              2. STRATEGIC INFRASTRUCTURE ASSESSMENT
+              2. STRATEGIC ASSET VULNERABILITY (GMCH, SECRETARIAT, AIRPORT)
             </div>
             {compromised.length === 0 ? (
               <p className="text-emerald-400 font-sans text-xs flex items-center gap-1.5">
                 <CheckCircle className="h-4 w-4" />
-                All high-priority hospitals, power substations, and emergency shelters remain operational.
+                Assam State Secretariat, GMCH Bhangagarh, and designated relief shelters remain operational.
               </p>
             ) : (
               <div className="space-y-1 font-sans text-xs">
@@ -110,7 +112,7 @@ export const SitRepModal: React.FC = () => {
                   <div key={c.id} className="text-rose-400 flex items-center gap-1.5">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
                     <span>
-                      <strong>{c.infrastructureName}</strong> in Sector [{c.x},{c.y}] has water depth of {c.currentWaterLevel.toFixed(2)}m (Critical Threshold Exceeded).
+                      <strong>{c.infrastructureName}</strong> at [{c.x},{c.y}] has water depth of {c.currentWaterLevel.toFixed(2)}m (Critical threshold breached).
                     </span>
                   </div>
                 ))}
@@ -120,11 +122,12 @@ export const SitRepModal: React.FC = () => {
 
           <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-1 text-slate-400 text-[11px]">
             <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-              3. NUMERICAL SIMULATION METHODOLOGY & REPRODUCIBILITY
+              3. GMDA MASTER PLAN ALIGNMENT & TELEMETRY METHODOLOGY
             </div>
-            <div>Model: 2D Diffusive Wave Shallow Water Approximations with Manning roughness n={config.surfaceRoughness}.</div>
-            <div>Grid Discretization: {Math.sqrt(grid.length)}x{Math.sqrt(grid.length)} cells (250m x 250m cell resolution).</div>
-            <div>Volume Conservation: Strict CFL flux damping limit &lt;= 0.45 h_avail per timestep.</div>
+            <div>Institutional Framework: Guwahati Metropolitan Development Authority (GMDA) GIS Drainage Planning.</div>
+            <div>EOI Strategic Alignment: GIS-based comprehensive drainage master plan & DPR for Guwahati.</div>
+            <div>Telemetry Integration: 18 Automatic Weather Stations mesh + 20 GMDA Auto-Priming Dewatering Pumps.</div>
+            <div>Primary Channels Modeled: Bharalu, Mora Bharalu, Basistha, Bahini, Lakhimijan, Brahmaputra.</div>
           </div>
         </div>
 

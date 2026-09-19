@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { MapViewSettings } from '@/types/simulation';
 
 interface UIContextType {
@@ -30,8 +30,8 @@ interface UIContextType {
   playTacticalAlertSound: (severity: 'warning' | 'critical' | 'action') => void;
 
   // Modals & Panels
-  activeModal: 'none' | 'comparison' | 'evacuation' | 'export_report';
-  setActiveModal: (modal: 'none' | 'comparison' | 'evacuation' | 'export_report') => void;
+  activeModal: 'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info';
+  setActiveModal: (modal: 'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info') => void;
 
   // Fullscreen map mode
   isFullscreenMap: boolean;
@@ -44,7 +44,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(true);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(true);
   const [audioAlertsEnabled, setAudioAlertsEnabled] = useState(true);
-  const [activeModal, setActiveModal] = useState<'none' | 'comparison' | 'evacuation' | 'export_report'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info'>('none');
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
 
   const [mapSettings, setMapSettings] = useState<MapViewSettings>({
@@ -59,6 +59,8 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     showPopulationDensity: false,
     showCriticalAlertPulses: true,
     showInfrastructureMarkers: true,
+    showPrimaryChannels: true,
+    showWeatherStations: true,
     selectedCellId: null,
   });
 
@@ -89,7 +91,6 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Web Audio API Synthesizer for Tactical Crisis Command Sound Alerts
-   * No external audio files needed; completely self-contained and zero latency.
    */
   const playTacticalAlertSound = useCallback((severity: 'warning' | 'critical' | 'action') => {
     if (!audioAlertsEnabled || typeof window === 'undefined') return;
@@ -108,7 +109,6 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
       const now = ctx.currentTime;
 
       if (severity === 'critical') {
-        // High urgency two-tone alert
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(880, now);
         osc.frequency.setValueAtTime(740, now + 0.1);
@@ -118,7 +118,6 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         osc.start(now);
         osc.stop(now + 0.35);
       } else if (severity === 'warning') {
-        // Subtle warning tone
         osc.type = 'sine';
         osc.frequency.setValueAtTime(520, now);
         osc.frequency.exponentialRampToValueAtTime(440, now + 0.2);
@@ -127,7 +126,6 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         osc.start(now);
         osc.stop(now + 0.25);
       } else {
-        // Tactical click / action ping
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(980, now);
         gain.gain.setValueAtTime(0.05, now);
@@ -136,7 +134,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         osc.stop(now + 0.08);
       }
     } catch {
-      // Audio context might be restricted before user gesture; gracefully ignore
+      // Audio context might be restricted before user gesture
     }
   }, [audioAlertsEnabled]);
 
