@@ -69,8 +69,9 @@ export const FloodMap2D5: React.FC = () => {
 
   const pulsePhaseRef = useRef<number>(0);
 
-  // Selected cell object
-  const selectedNode = grid.find(n => n.id === selectedCellId) || null;
+  // Selected cell object (handles 2D grid array)
+  const flatCells = Array.isArray(grid[0]) ? (grid as unknown as GridNode[][]).flat() : (grid as unknown as GridNode[]);
+  const selectedNode = flatCells.find(n => n.id === selectedCellId) || null;
   const selectedAWS = selectedNode?.awsStationId
     ? weatherStations.find(w => w.id === selectedNode.awsStationId)
     : null;
@@ -185,7 +186,7 @@ export const FloodMap2D5: React.FC = () => {
     let closestCell: GridNode | null = null;
     let minDistance = Infinity;
 
-    for (const node of grid) {
+    for (const node of flatCells) {
       const proj = projectCoordinates(node.x, node.y, node.elevation, width, height);
 
       if (is2D) {
@@ -262,8 +263,14 @@ export const FloodMap2D5: React.FC = () => {
 
       const is2D = mapSettings.projection === '2D';
 
+      // Read current live grid from store on every animation frame (handles 2D grid)
+      const currentGridState = useFloodSimulation.getState().grid;
+      const currentCells = Array.isArray(currentGridState[0])
+        ? (currentGridState as unknown as GridNode[][]).flat()
+        : (currentGridState as unknown as GridNode[]);
+
       // Sort cells back-to-front
-      const sortedGrid = [...grid].sort((a, b) => {
+      const sortedGrid = [...currentCells].sort((a, b) => {
         if (is2D) return 0;
         return (a.x + a.y) - (b.x + b.y);
       });
@@ -272,7 +279,8 @@ export const FloodMap2D5: React.FC = () => {
       for (const node of sortedGrid) {
         const isSelected = node.id === selectedCellId;
         const isHovered = node.id === hoveredCell?.id;
-        const hasWater = node.currentWaterLevel > 0.02;
+        const depth = node.waterDepth ?? node.currentWaterLevel ?? 0;
+        const hasWater = depth > 0.02;
 
         const proj = projectCoordinates(node.x, node.y, node.elevation, width, height);
 
@@ -295,21 +303,21 @@ export const FloodMap2D5: React.FC = () => {
           }
         }
 
-        // Water depth classification colors
+        // Water depth classification colors: Safe (<0.25m: emerald), Warning (0.25-0.75m: amber), Critical (>0.75m: red/crimson)
         let waterFill = 'transparent';
         let waterStroke = 'transparent';
 
         if (mapSettings.showWaterDepthHeatmap && hasWater) {
-          if (node.status === 'CRITICAL') {
-            const alpha = Math.min(0.88, 0.55 + node.currentWaterLevel * 0.15);
+          if (depth >= 0.75 || node.status === 'CRITICAL') {
+            const alpha = Math.min(0.90, 0.55 + depth * 0.15);
             waterFill = `rgba(244, 63, 94, ${alpha})`;
             waterStroke = '#fb7185';
-          } else if (node.status === 'WARNING') {
-            const alpha = Math.min(0.80, 0.45 + node.currentWaterLevel * 0.2);
+          } else if (depth >= 0.25 || node.status === 'WARNING') {
+            const alpha = Math.min(0.82, 0.45 + depth * 0.2);
             waterFill = `rgba(245, 158, 11, ${alpha})`;
             waterStroke = '#fcd34d';
           } else {
-            const alpha = Math.min(0.70, 0.35 + node.currentWaterLevel * 0.3);
+            const alpha = Math.min(0.70, 0.35 + depth * 0.3);
             waterFill = `rgba(16, 185, 129, ${alpha})`;
             waterStroke = '#6ee7b7';
           }
@@ -414,9 +422,9 @@ export const FloodMap2D5: React.FC = () => {
           }
           ctx.stroke();
 
-          // Volumetric Water Layer
+          // Volumetric Water Layer (extrude height proportional to waterDepth)
           if (hasWater && mapSettings.showWaterDepthHeatmap) {
-            const waterExtrusion = Math.min(22, node.currentWaterLevel * 8 * camera.zoom);
+            const waterExtrusion = Math.min(32, Math.max(3, depth * 12 * camera.zoom));
             const wy = cy - waterExtrusion;
 
             if (waterExtrusion > 1) {

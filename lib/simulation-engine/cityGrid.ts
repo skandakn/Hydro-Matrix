@@ -374,6 +374,7 @@ export function generateCityGrid(): GridNode[] {
 
       // Status initialization
       const status = baseWater >= 0.75 ? 'CRITICAL' : baseWater >= 0.25 ? 'WARNING' : 'SAFE';
+      const cap = channel ? 45.0 : 25.0;
 
       nodes.push({
         id,
@@ -382,10 +383,13 @@ export function generateCityGrid(): GridNode[] {
         name: locality.name,
         locality: locality.name,
         elevation: locality.baseElev,
+        waterDepth: baseWater,
         currentWaterLevel: baseWater,
+        capacity: cap,
+        drainageCapacity: cap,
+        channelType: channel || 'none',
         totalElevation: parseFloat((locality.baseElev + baseWater).toFixed(2)),
-        drainageCapacity: channel ? 45.0 : 25.0,
-        effectiveDrainage: channel ? 45.0 : 25.0,
+        effectiveDrainage: cap,
         permeability,
         population: locality.pop,
         inflowRate: 0,
@@ -408,4 +412,20 @@ export function generateCityGrid(): GridNode[] {
   }
 
   return nodes;
+}
+
+/**
+ * Returns the Guwahati city grid as an 18x18 2D array: grid[y][x]
+ */
+export function generateCityGrid2D(): GridNode[][] {
+  const flat = generateCityGrid();
+  const grid2D: GridNode[][] = [];
+  for (let y = 0; y < GRID_HEIGHT; y++) {
+    const row: GridNode[] = [];
+    for (let x = 0; x < GRID_WIDTH; x++) {
+      row.push(flat[y * GRID_WIDTH + x]);
+    }
+    grid2D.push(row);
+  }
+  return grid2D;
 }

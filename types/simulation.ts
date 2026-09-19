@@ -92,9 +92,12 @@ export interface GridNode {
   name: string;
   locality: string;
   elevation: number;
-  currentWaterLevel: number;
+  waterDepth: number; // Water accumulation depth in meters
+  currentWaterLevel: number; // In meters (synced with waterDepth)
+  capacity: number; // Drainage capacity in m³/s or mm/h
+  drainageCapacity: number; // Synced with capacity
+  channelType: string; // Drainage channel identifier ('Bharalu' | 'Bahini' | 'Basistha' | 'Mora Bharalu' | 'Lakhimijan' | 'Brahmaputra' | 'none')
   totalElevation: number;
-  drainageCapacity: number;
   effectiveDrainage: number;
   permeability: number;
   population: number;
@@ -118,6 +121,8 @@ export interface GridNode {
   awsStationId?: string;
   gmdaPumpId?: string;
 }
+
+export type SimulationCell = GridNode;
 
 export interface SimulationConfig {
   rainfallIntensity: number;

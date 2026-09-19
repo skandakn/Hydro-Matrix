@@ -52,6 +52,8 @@ export const LeftDrawer: React.FC = () => {
     activeDisasters,
     gmdaPumps,
     activePumpIds,
+    activePumps,
+    rainfall,
     togglePlayPause,
     stepForward,
     stepBackward,
@@ -93,7 +95,7 @@ export const LeftDrawer: React.FC = () => {
     return { label: 'Khasi Foothills Cloudburst', color: 'text-rose-400 font-bold animate-pulse' };
   };
 
-  const rainInfo = getRainfallLabel(config.rainfallIntensity);
+  const rainInfo = getRainfallLabel(rainfall);
 
   const scenarioIcons: Record<string, React.ReactNode> = {
     CloudRain: <CloudRain className="h-4 w-4 text-blue-400" />,
@@ -234,8 +236,8 @@ export const LeftDrawer: React.FC = () => {
               <Cpu className="h-4 w-4 text-blue-400" />
               <span>20 GMDA Auto-Priming Pumps</span>
             </div>
-            <Badge variant={activePumpIds.size === 20 ? 'safe' : activePumpIds.size > 0 ? 'warning' : 'critical'} className="text-[10px] font-mono">
-              {activePumpIds.size}/20 ARMED
+            <Badge variant={activePumps === 20 ? 'safe' : activePumps > 0 ? 'warning' : 'critical'} className="text-[10px] font-mono">
+              {activePumps}/20 ARMED
             </Badge>
           </div>
 
@@ -321,7 +323,7 @@ export const LeftDrawer: React.FC = () => {
               <span>Catchment Precipitation</span>
             </div>
             <span className="font-mono text-xs font-bold text-cyan-300">
-              {config.rainfallIntensity} mm/h
+              {rainfall} mm/h
             </span>
           </div>
 
@@ -329,15 +331,15 @@ export const LeftDrawer: React.FC = () => {
             min={0}
             max={200}
             step={2}
-            value={config.rainfallIntensity}
+            value={rainfall}
             onValueChange={(val) => setRainfallIntensity(val)}
-            accentColor={config.rainfallIntensity > 100 ? 'rose' : config.rainfallIntensity > 50 ? 'amber' : 'cyan'}
+            accentColor={rainfall > 100 ? 'rose' : rainfall > 50 ? 'amber' : 'cyan'}
           />
 
           <div className="flex items-center justify-between text-[11px]">
             <span className={rainInfo.color}>{rainInfo.label}</span>
             <span className="text-slate-500 font-mono">
-              Orographic: {config.rainfallIntensity > 60 ? '+25% Khasi Hills' : 'Normal'}
+              Orographic: {rainfall > 60 ? '+25% Khasi Hills' : 'Normal'}
             </span>
           </div>
         </div>

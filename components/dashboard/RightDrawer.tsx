@@ -15,6 +15,7 @@
 import React, { useState } from 'react';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
+import { GridNode } from '@/types/simulation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -49,12 +50,15 @@ import { formatPopulation } from '@/lib/utils';
 export const RightDrawer: React.FC = () => {
   const {
     grid,
+    floodedArea,
     floodedAreaSqKm,
+    affectedResidents,
     affectedPopulation,
     criticalZoneCount,
     warningZoneCount,
     telemetryHistory,
     weatherStations,
+    activePumps,
     activePumpsCount,
     bahiniBharaluFlowM3S,
     selectCell,
@@ -85,8 +89,9 @@ export const RightDrawer: React.FC = () => {
     );
   }
 
-  // Filter critical zones
-  const criticalAndApproaching = grid
+  // Filter critical zones (handles 2D grid)
+  const flatCells = Array.isArray(grid[0]) ? (grid as unknown as GridNode[][]).flat() : (grid as unknown as GridNode[]);
+  const criticalAndApproaching = flatCells
     .filter(n => n.status === 'CRITICAL' || (n.timeToCriticalMinutes !== null && n.timeToCriticalMinutes <= 90))
     .sort((a, b) => {
       const aTime = a.status === 'CRITICAL' ? 0 : (a.timeToCriticalMinutes ?? 999);
@@ -173,8 +178,8 @@ export const RightDrawer: React.FC = () => {
                   </span>
                   <span className="text-xs text-slate-400 font-mono">km²</span>
                 </div>
-                <div className="mt-0.5 text-[10px] text-slate-400">
-                  Bahini-Bharalu Watershed
+                <div className="mt-0.5 text-[10px] text-cyan-400/90 font-mono">
+                  {floodedArea} sectors ({'>'}0.10m)
                 </div>
               </div>
 
@@ -185,9 +190,9 @@ export const RightDrawer: React.FC = () => {
                 </div>
                 <div className="mt-1 flex items-baseline gap-1">
                   <span className="font-mono text-xl font-bold text-amber-300">
-                    {formatPopulation(affectedPopulation)}
+                    {formatPopulation(affectedResidents || affectedPopulation)}
                   </span>
-                  <span className="text-xs text-slate-400 font-mono">people</span>
+                  <span className="text-xs text-slate-400 font-mono">residents</span>
                 </div>
                 <div className="mt-0.5 text-[10px] text-amber-400/80 font-medium">
                   Anil/Nabin/Rukminigaon
@@ -217,7 +222,7 @@ export const RightDrawer: React.FC = () => {
                 </div>
                 <div className="mt-1 flex items-baseline gap-1">
                   <span className="font-mono text-xl font-bold text-blue-300">
-                    {activePumpsCount}/20
+                    {activePumps ?? activePumpsCount}/20
                   </span>
                   <span className="text-xs text-slate-400 font-mono">units</span>
                 </div>

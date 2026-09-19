@@ -34,7 +34,7 @@ export default function CrisisCommandPage() {
   const {
     isPlaying,
     playbackSpeed,
-    stepForward,
+    runSimulationStep,
     criticalZoneCount,
     generateComparisonBenchmarks,
   } = useFloodSimulation();
@@ -77,23 +77,23 @@ export default function CrisisCommandPage() {
 
   /**
    * High-Precision Physics Clock Loop:
-   * Drives discrete time evolution of the 2D shallow water diffusive wave equations.
-   * Base rate: 1 tick = 900ms at 1x speed, scaling down to 90ms at 10x speed.
+   * Drives discrete time evolution of Cellular Automata & 2D diffusive wave equations.
+   * Runs runSimulationStep() scaled dynamically by playback speed (1x, 2x, 5x, 10x).
    * Persists a telemetry point to Supabase every 5 ticks.
    */
   useEffect(() => {
     if (!isPlaying) return;
 
-    const intervalMs = Math.max(90, Math.round(900 / playbackSpeed));
+    const intervalMs = Math.max(80, Math.round(800 / playbackSpeed));
 
     const timer = setInterval(() => {
-      stepForward();
+      runSimulationStep();
       const tick = useFloodSimulation.getState().currentTick;
       recordTelemetryTick(tick);
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [isPlaying, playbackSpeed, stepForward, recordTelemetryTick]);
+  }, [isPlaying, playbackSpeed, runSimulationStep, recordTelemetryTick]);
 
   return (
     <main className="relative flex flex-col h-screen w-screen overflow-hidden bg-slate-950 font-sans text-slate-100">

@@ -9,6 +9,7 @@
 import React from 'react';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
+import { GridNode } from '@/types/simulation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -26,11 +27,12 @@ export const EvacuationAdvisor: React.FC = () => {
 
   if (activeModal !== 'evacuation') return null;
 
-  // Find all shelters
-  const shelters = grid.filter(n => n.infrastructure === 'shelter');
+  // Find all shelters (handles 2D grid)
+  const cells = Array.isArray(grid[0]) ? (grid as unknown as GridNode[][]).flat() : (grid as unknown as GridNode[]);
+  const shelters = cells.filter(n => n.infrastructure === 'shelter');
 
   // Find critical or rapidly approaching sectors
-  const urgentEvacZones = grid
+  const urgentEvacZones = cells
     .filter(n => n.status === 'CRITICAL' || (n.timeToCriticalMinutes !== null && n.timeToCriticalMinutes <= 60))
     .sort((a, b) => {
       const aTime = a.status === 'CRITICAL' ? 0 : (a.timeToCriticalMinutes ?? 999);

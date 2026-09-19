@@ -9,6 +9,7 @@
 import React, { useState } from 'react';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
+import { GridNode } from '@/types/simulation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -43,7 +44,8 @@ export const SitRepModal: React.FC = () => {
 
   if (activeModal !== 'export_report') return null;
 
-  const compromised = grid.filter(n => n.infrastructure && n.status === 'CRITICAL');
+  const cells = Array.isArray(grid[0]) ? (grid as unknown as GridNode[][]).flat() : (grid as unknown as GridNode[]);
+  const compromised = cells.filter(n => n.infrastructure && n.status === 'CRITICAL');
 
   const handleSaveToDb = async () => {
     setSaving(true);
@@ -135,7 +137,7 @@ export const SitRepModal: React.FC = () => {
             </div>
             <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/50">
               <span className="text-[10px] text-slate-400 block">CRITICAL SECTORS</span>
-              <span className="text-base font-bold text-rose-400">{criticalZoneCount} / {grid.length}</span>
+              <span className="text-base font-bold text-rose-400">{criticalZoneCount} / {cells.length}</span>
             </div>
             <div className="p-3 rounded-lg border border-slate-800 bg-slate-900/50">
               <span className="text-[10px] text-slate-400 block">PEAK WATER DEPTH</span>
