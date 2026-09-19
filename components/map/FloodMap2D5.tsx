@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: 2.5D Isometric & 2D Interactive Geospatial Grid Renderer
+ * HYDRO MATRIX: 2.5D Isometric & 2D Interactive Geospatial Grid Renderer
  * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Features:

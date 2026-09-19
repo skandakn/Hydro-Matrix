@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: Right Drawer (Telemetry & Analytics Panel)
+ * HYDRO MATRIX: Right Drawer (Telemetry & Analytics Panel)
  * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Features:

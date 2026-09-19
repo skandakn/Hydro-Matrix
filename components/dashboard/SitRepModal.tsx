@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: Incident Situation Report (SitRep) Modal
+ * HYDRO MATRIX: Incident Situation Report (SitRep) Modal
  * Localization: Guwahati — Bahini/Bharalu Basin
  * Generates an executive crisis debriefing report with live hydrological calculations.
  */
@@ -74,7 +74,7 @@ export const SitRepModal: React.FC = () => {
               1. EXECUTIVE CRISIS SUMMARY • GUWAHATI BAHINI/BHARALU BASIN
             </div>
             <p className="text-slate-300 leading-relaxed font-sans text-xs">
-              The FLOWSHIELD 2D Shallow Water numerical simulation model has computed {currentTick} discrete timesteps ({formatTime(elapsedSeconds)} elapsed) across the Guwahati metropolitan basin. Precipitation is calibrated at {config.rainfallIntensity} mm/h with {activePumpsCount}/20 GMDA auto-priming dewatering pumps operational. Bharalu arterial discharge is measured at {bahiniBharaluFlowM3S} m³/s with Bharalumukh sluice gate {config.sluiceGateOpen ? 'OPEN' : 'LOCKED'}.
+              The HYDRO MATRIX 2D Shallow Water numerical simulation model has computed {currentTick} discrete timesteps ({formatTime(elapsedSeconds)} elapsed) across the Guwahati metropolitan basin. Precipitation is calibrated at {config.rainfallIntensity} mm/h with {activePumpsCount}/20 GMDA auto-priming dewatering pumps operational. Bharalu arterial discharge is measured at {bahiniBharaluFlowM3S} m³/s with Bharalumukh sluice gate {config.sluiceGateOpen ? 'OPEN' : 'LOCKED'}.
             </p>
           </div>
 

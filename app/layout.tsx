@@ -4,7 +4,7 @@ import { UIProvider } from "@/context/UIContext";
 import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
-  title: "FLOWSHIELD | Flood Simulation & Early Warning Dashboard",
+  title: "HYDRO MATRIX | Flood Simulation & Early Warning Dashboard",
   description: "High-stakes crisis command center and 2.5D hydrological simulation engine for urban flood resilience and early disaster warnings.",
 };
 

@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: Scenario Comparison Modal & Analysis Matrix
+ * HYDRO MATRIX: Scenario Comparison Modal & Analysis Matrix
  * 
  * Provides side-by-side behavioral analysis across multiple crisis scenarios:
  * - Peak Inundated Land Area (km²)

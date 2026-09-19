@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: Guwahati Metropolitan Basin Topography Generator
+ * HYDRO MATRIX: Guwahati Metropolitan Basin Topography Generator
  * Hyper-focused on the Bahini/Bharalu Basin & surrounding hydrological corridors.
  * 
  * Incorporates:

@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: UI & Theme Context
+ * HYDRO MATRIX: UI & Theme Context
  * Manages drawer states, map visualization layers, tactical audio alerts,
  * and command center modal overlays.
  */

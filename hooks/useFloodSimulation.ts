@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: useFloodSimulation (Zustand State Store & Physics Loop Hook)
+ * HYDRO MATRIX: useFloodSimulation (Zustand State Store & Physics Loop Hook)
  * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Features:

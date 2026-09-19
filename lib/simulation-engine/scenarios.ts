@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: Guwahati & Bahini/Bharalu Basin Crisis Scenarios
+ * HYDRO MATRIX: Guwahati & Bahini/Bharalu Basin Crisis Scenarios
  * 
  * Hyper-focused real-world emergency scenarios supporting GMDA drainage planning:
  * 1. Normal Seasonal Monsoon over Guwahati

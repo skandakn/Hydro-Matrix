@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: Flood Simulation & Early Warning Dashboard
+ * HYDRO MATRIX: Flood Simulation & Early Warning Dashboard
  * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Supports the Guwahati Metropolitan Development Authority (GMDA)

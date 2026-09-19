@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: Left Drawer (Scenario & Controls Panel)
+ * HYDRO MATRIX: Left Drawer (Scenario & Controls Panel)
  * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Features:

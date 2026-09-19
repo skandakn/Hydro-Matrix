@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: Command Center Header Bar
+ * HYDRO MATRIX: Command Center Header Bar
  * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Features:

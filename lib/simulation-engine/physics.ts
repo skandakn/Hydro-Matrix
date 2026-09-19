@@ -1,5 +1,5 @@
 /**
- * FLOWSHIELD: 2D Shallow Water & Diffusive Wave Physics Engine
+ * HYDRO MATRIX: 2D Shallow Water & Diffusive Wave Physics Engine
  * Localization: Guwahati — Bahini/Bharalu Basin
  * 
  * Incorporates:

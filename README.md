@@ -1,4 +1,4 @@
-# 🌊 HYDRO-MATRIX: FLOWSHIELD
+# 🌊 HYDRO MATRIX
 ### *Urban Flood Simulation & Early Warning Crisis Command Dashboard*
 #### **Guwahati Localization: Bahini / Bharalu Basin & GMDA GIS Drainage Ecosystem**
 
@@ -9,7 +9,7 @@
 [![Zustand](https://img.shields.io/badge/Zustand-Frame_Physics_State-orange)](https://github.com/pmndrs/zustand)
 [![Recharts](https://img.shields.io/badge/Recharts-Realtime_Telemetry-22c55e)](https://recharts.org/)
 
-**HYDRO-MATRIX / FLOWSHIELD** is an advanced crisis operations and hydrological simulation dashboard engineered for real-time disaster resilience in **Guwahati, Assam**. The platform is localized specifically to the complex **Bahini / Bharalu drainage basin** and integrates directly with the **Guwahati Metropolitan Development Authority (GMDA)** GIS-based drainage-planning ecosystem, supporting the Expression of Interest (EOI) for a GIS-based comprehensive drainage master plan and Detailed Project Report (DPR) for Guwahati.
+**HYDRO MATRIX** is an advanced crisis operations and hydrological simulation dashboard engineered for real-time disaster resilience in **Guwahati, Assam**. The platform is localized specifically to the complex **Bahini / Bharalu drainage basin** and integrates directly with the **Guwahati Metropolitan Development Authority (GMDA)** GIS-based drainage-planning ecosystem, supporting the Expression of Interest (EOI) for a GIS-based comprehensive drainage master plan and Detailed Project Report (DPR) for Guwahati.
 
 It renders high-fidelity 2D/2.5D flood inundation dynamics at 60 FPS in the browser, integrates live telemetry feeds from **18 Automatic Weather Stations (AWS)** across the city, controls **20 GMDA auto-priming dewatering pump stations**, models the **Brahmaputra River outfall & Bharalumukh sluice gates**, and calculates predictive Time-to-Critical evacuation countdowns.
 
@@ -18,7 +18,7 @@ It renders high-fidelity 2D/2.5D flood inundation dynamics at 60 FPS in the brow
 ## 🏛️ System Architecture
 
 ```
-flowshield/
+hydro-matrix/
 ├── app/
 │   ├── layout.tsx                   # Command Center layout + UIContext Provider
 │   ├── page.tsx                     # Physics engine loop driver (60 FPS / clock-scaled)
