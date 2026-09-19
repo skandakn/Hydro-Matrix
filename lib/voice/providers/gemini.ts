@@ -7,7 +7,7 @@ export class GeminiVoiceProvider {
 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY || '';
-    this.model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    this.model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
   }
 
@@ -44,8 +44,9 @@ Your role:
       },
     ];
 
-    const modelPool = [this.model, 'gemini-2.5-flash', 'gemini-1.5-flash'];
+    const modelPool = [this.model, 'gemini-3.6-flash', 'gemini-1.5-flash'];
     let responseText = '';
+
 
     for (const m of modelPool) {
       try {

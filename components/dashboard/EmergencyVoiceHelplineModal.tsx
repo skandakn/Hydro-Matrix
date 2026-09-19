@@ -29,7 +29,12 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'voice' | 'telephony' | 'logs'>('voice');
 
   // Interactive Voice Hotline state
-  const [messages, setMessages] = useState<{ speaker: 'caller' | 'assistant'; text: string; time: string }[]>([
+  const [messages, setMessages] = useState<{
+    speaker: 'caller' | 'assistant';
+    text: string;
+    time: string;
+    audioBase64?: string;
+  }[]>([
     {
       speaker: 'assistant',
       text: 'FLOWSHIELD Emergency Hotline: Guwahati Bahini-Bharalu Basin Crisis Command. Please state your location and flood situation.',
@@ -51,7 +56,6 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
   // Call logs
   const [callLogs, setCallLogs] = useState<CallSession[]>([]);
 
-
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -59,6 +63,53 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Robust sound playback with ElevenLabs + Web Speech API fallback
+  const playAudio = (audioBase64?: string, textFallback?: string) => {
+    try {
+      if (audioBase64) {
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+        }
+        audioRef.current.src = `data:audio/mpeg;base64,${audioBase64}`;
+        setIsPlayingAudio(true);
+        audioRef.current.onended = () => setIsPlayingAudio(false);
+        audioRef.current.onerror = () => {
+          setIsPlayingAudio(false);
+          if (textFallback && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(textFallback);
+            utter.rate = 1.0;
+            window.speechSynthesis.speak(utter);
+          }
+        };
+        audioRef.current.play().catch((err) => {
+          console.warn('ElevenLabs audio playback was restricted by browser, using Web Speech fallback:', err);
+          setIsPlayingAudio(false);
+          if (textFallback && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(textFallback);
+            utter.rate = 1.0;
+            window.speechSynthesis.speak(utter);
+          }
+        });
+        return;
+      }
+
+      if (textFallback && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(textFallback);
+        utter.rate = 1.0;
+        setIsPlayingAudio(true);
+        utter.onend = () => setIsPlayingAudio(false);
+        utter.onerror = () => setIsPlayingAudio(false);
+        window.speechSynthesis.speak(utter);
+      }
+    } catch (e) {
+      console.error('Audio playback error:', e);
+      setIsPlayingAudio(false);
+    }
+  };
 
   // Load system info on open
   useEffect(() => {
@@ -71,7 +122,6 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
         .catch(console.error);
     }
   }, [activeModal]);
-
 
   if (activeModal !== 'emergency_helpline') return null;
 
@@ -96,21 +146,16 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
 
       const data = await res.json();
       if (data.success) {
-        setMessages((prev) => [
-          ...prev,
-          { speaker: 'assistant', text: data.responseText, time: timeStr },
-        ]);
+        const assistantMsg = {
+          speaker: 'assistant' as const,
+          text: data.responseText,
+          time: timeStr,
+          audioBase64: data.audioBase64,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
 
-        // Play ElevenLabs synthesized audio if returned
-        if (data.audioBase64) {
-          if (!audioRef.current) {
-            audioRef.current = new Audio();
-          }
-          audioRef.current.src = `data:audio/mpeg;base64,${data.audioBase64}`;
-          setIsPlayingAudio(true);
-          audioRef.current.onended = () => setIsPlayingAudio(false);
-          audioRef.current.play().catch((e) => console.log('Audio autoplay prevented:', e));
-        }
+        // Trigger speech immediately
+        playAudio(data.audioBase64, data.responseText);
       }
     } catch (err) {
       console.error('Failed to process message:', err);
@@ -118,6 +163,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
       setIsProcessing(false);
     }
   };
+
 
   const handleDispatchExotelCall = async () => {
     if (!dispatchPhone.trim()) return;
@@ -342,10 +388,23 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
                       className={`max-w-[80%] rounded-xl px-4 py-2.5 text-xs leading-relaxed ${
                         m.speaker === 'caller'
                           ? 'bg-cyan-600 text-white rounded-tr-none'
-                          : 'bg-slate-800/90 border border-slate-700 text-slate-100 rounded-tl-none'
+                          : 'bg-slate-800/90 border border-slate-700 text-slate-100 rounded-tl-none shadow-md'
                       }`}
                     >
-                      {m.text}
+                      <p>{m.text}</p>
+                      {m.speaker === 'assistant' && (
+                        <div className="mt-2 pt-1.5 border-t border-slate-700/60 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => playAudio(m.audioBase64, m.text)}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer group"
+                            title="Click to play synthesized voice audio"
+                          >
+                            <Volume2 className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
+                            <span>🔊 Listen to Voice</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
