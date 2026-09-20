@@ -30,7 +30,6 @@ import {
   Info,
   Building2,
   LogIn,
-  PhoneCall,
   Tent,
   Globe,
 } from 'lucide-react';
@@ -260,21 +259,6 @@ export const Header: React.FC = () => {
           <span className="rounded bg-emerald-950/90 px-1.5 py-0.5 text-[9px] font-mono text-emerald-300 border border-emerald-500/30">
             {rescueCamps.length} <span className="hidden sm:inline">({totalShelteredEvacuees.toLocaleString()})</span>
           </span>
-        </Button>
-
-        {/* Emergency Voice Helpline Button */}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setActiveModal('emergency_helpline');
-            playTacticalAlertSound('critical');
-          }}
-          className="gap-1.5 text-xs border-rose-500/50 bg-rose-950/30 text-rose-300 hover:bg-rose-900/50 hover:border-rose-400 shadow-sm shadow-rose-950/40 px-2 sm:px-2.5"
-          title={t('emergencyHelpline')}
-        >
-          <PhoneCall className="h-3.5 w-3.5 text-rose-400 animate-pulse" />
-          <span className="hidden lg:inline">{t('emergencyHelpline')}</span>
         </Button>
 
         {/* Evacuation Advisor Button */}

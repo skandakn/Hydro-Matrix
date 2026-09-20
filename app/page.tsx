@@ -16,7 +16,7 @@
 
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
@@ -30,6 +30,7 @@ import { SitRepModal } from '@/components/dashboard/SitRepModal';
 import { GMDAInfoModal } from '@/components/dashboard/GMDAInfoModal';
 import { EmergencyVoiceHelplineModal } from '@/components/dashboard/EmergencyVoiceHelplineModal';
 import { RescueCampModal } from '@/components/dashboard/RescueCampModal';
+import { MessageCircle, X } from 'lucide-react';
 
 export default function CrisisCommandPage() {
   const {
@@ -40,7 +41,7 @@ export default function CrisisCommandPage() {
     generateComparisonBenchmarks,
   } = useFloodSimulation();
 
-  const { playTacticalAlertSound } = useUIContext();
+  const { playTacticalAlertSound, setActiveModal, activeModal } = useUIContext();
   const { startSession, recordTelemetryTick, flushSession, saveBenchmarks } =
     useSessionPersistence();
 
@@ -122,6 +123,58 @@ export default function CrisisCommandPage() {
       <SitRepModal />
       <EmergencyVoiceHelplineModal />
       <RescueCampModal />
+
+      {/* 4. Matrix Assistant — Floating Chatbot FAB (bottom-right) */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        {/* Tooltip label — visible on hover */}
+        <div
+          className={`transition-all duration-200 ${
+            activeModal === 'emergency_helpline'
+              ? 'opacity-0 pointer-events-none'
+              : 'opacity-100'
+          }`}
+        >
+          <button
+            onClick={() => {
+              setActiveModal('emergency_helpline');
+              playTacticalAlertSound('critical');
+            }}
+            className="group flex items-center gap-2.5 rounded-2xl border border-rose-500/60 bg-slate-950/95 backdrop-blur-xl px-4 py-3 shadow-2xl shadow-rose-950/60 hover:border-rose-400 hover:bg-rose-950/30 transition-all duration-200 hover:scale-105 active:scale-95"
+            title="Open Matrix Assistant"
+          >
+            {/* Pulsing indicator dot */}
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
+            </span>
+
+            {/* Icon */}
+            <MessageCircle className="h-5 w-5 text-rose-400 group-hover:text-rose-300 transition-colors shrink-0" />
+
+            {/* Label */}
+            <div className="flex flex-col items-start leading-none">
+              <span className="text-[11px] font-black tracking-widest text-white uppercase">
+                Matrix
+              </span>
+              <span className="text-[10px] font-bold tracking-wider text-rose-400 uppercase">
+                Assistant
+              </span>
+            </div>
+          </button>
+        </div>
+
+        {/* Close / minimise button — only visible when modal is open */}
+        {activeModal === 'emergency_helpline' && (
+          <button
+            onClick={() => setActiveModal('none')}
+            className="flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/95 backdrop-blur-xl px-3 py-2.5 shadow-xl text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-150 text-xs font-semibold"
+            title="Close Matrix Assistant"
+          >
+            <X className="h-4 w-4" />
+            <span>Close</span>
+          </button>
+        )}
+      </div>
     </main>
   );
 }
