@@ -208,12 +208,12 @@ Where DEFCON thresholds are defined as:
 
 Demographic impact is computed dynamically from affected cells and calibrated to Guwahati's actual urban basin census:
 
-$$\text{Pop}_{\text{affected}} = \min\left( P_{\max}, \; \mathrm{round}\left( \frac{\sum_{k \in \text{Basin}} w_k \cdot N_k}{N_{\text{total\_cells}}} \cdot P_{\text{basin}} \right) \right)$$
+$$\text{Pop}_{\text{affected}} = \min\left( P_{\max}, \; \mathrm{round}\left( \frac{\sum_{k \in \text{Basin}} w_k \cdot N_k}{N_{\text{total}}} \cdot P_{\text{basin}} \right) \right)$$
 
 * $P_{\max} = 1,500,000$ (Metropolitan boundary population).
 * $P_{\text{basin}} = 1,050,000$ (Bharalu / Bahini watershed residential population).
-* $N_{\text{total\_cells}} = 288$ (Terrestrial non-river cells).
-* Risk weightings: $w_{\text{critical}} = 1.0$, $w_{\text{warning}} = 0.6$, $w_{\text{ponding } (>0.1\text{m})} = 0.25$.
+* $N_{\text{total}} = 288$ (Terrestrial non-river basin cells).
+* Risk weightings: $w_{\text{critical}} = 1.0$, $w_{\text{warning}} = 0.6$, $w_{\text{ponding}} = 0.25$ (where $h > 0.10\text{ m}$).
 
 ---
 
