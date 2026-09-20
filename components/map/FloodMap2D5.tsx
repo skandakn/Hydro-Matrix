@@ -22,8 +22,9 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
-import { GridNode } from '@/types/simulation';
+import { GridNode, RescueCamp } from '@/types/simulation';
 import { GRID_WIDTH, GRID_HEIGHT, RECOGNIZED_CHANNELS } from '@/lib/simulation-engine/cityGrid';
+import { getNearestSafeCamp } from '@/lib/simulation-engine/rescueCampEngine';
 import { MapControls } from './MapControls';
 import { Legend } from './Legend';
 import { 
@@ -34,6 +35,10 @@ import {
   X,
   Radio,
   Cpu,
+  Tent,
+  MoveRight,
+  Plus,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,9 +56,12 @@ export const FloodMap2D5: React.FC = () => {
     weatherStations,
     gmdaPumps,
     toggleGMDAPump,
+    rescueCamps,
+    deployRescueCamp,
+    evacuateResidentsToCamp,
   } = useFloodSimulation();
 
-  const { mapSettings, playTacticalAlertSound } = useUIContext();
+  const { mapSettings, playTacticalAlertSound, setActiveModal } = useUIContext();
 
   // Camera Pan & Zoom Transform state
   const [camera, setCamera] = useState({
@@ -78,6 +86,13 @@ export const FloodMap2D5: React.FC = () => {
   const selectedPump = selectedNode?.gmdaPumpId
     ? gmdaPumps.find(p => p.id === selectedNode.gmdaPumpId)
     : null;
+  const selectedCamp = selectedNode
+    ? rescueCamps.find(c => c.gridX === selectedNode.x && c.gridY === selectedNode.y)
+    : null;
+  const nearestCampInfo = selectedNode && !selectedCamp
+    ? getNearestSafeCamp(selectedNode, rescueCamps)
+    : null;
+  const isHighGroundCandidate = selectedNode && !selectedCamp && selectedNode.elevation >= 51.5 && selectedNode.currentWaterLevel <= 0.05 && selectedNode.y > 1;
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -583,6 +598,75 @@ export const FloodMap2D5: React.FC = () => {
           }
           ctx.restore();
         }
+
+        // --- Evacuation Transit Corridors to Nearest Rescue Camp ---
+        if (mapSettings.showRescueCamps && (node.status === 'CRITICAL' || node.status === 'WARNING') && rescueCamps.length > 0) {
+          let closestCamp: RescueCamp | null = null;
+          let minD = Infinity;
+          for (const c of rescueCamps) {
+            if (c.status === 'OPERATIONAL' || c.status === 'NEAR_CAPACITY') {
+              const d = Math.hypot(node.x - c.gridX, node.y - c.gridY);
+              if (d < minD) {
+                minD = d;
+                closestCamp = c;
+              }
+            }
+          }
+          if (closestCamp && minD <= 6) {
+            const destProj = projectCoordinates(
+              closestCamp.gridX,
+              closestCamp.gridY,
+              closestCamp.elevationMeters,
+              width,
+              height
+            );
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(proj.px, proj.py);
+            ctx.lineTo(destProj.px, destProj.py);
+            ctx.strokeStyle = node.status === 'CRITICAL' ? 'rgba(244, 63, 94, 0.4)' : 'rgba(52, 211, 153, 0.28)';
+            ctx.lineWidth = 1.3;
+            ctx.setLineDash([3, 4]);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+
+        // --- Tactical Rescue Camp Markers & Safety Radar Perimeter ---
+        if (mapSettings.showRescueCamps) {
+          const campAtNode = rescueCamps.find(c => c.gridX === node.x && c.gridY === node.y);
+          if (campAtNode) {
+            const isCompromised = campAtNode.status === 'COMPROMISED';
+            const isRisk = campAtNode.status === 'AT_RISK_FLOODING';
+            const radarR = 15 + Math.sin(pulsePhaseRef.current * 1.5) * 5;
+
+            ctx.save();
+            // Pulsating radar perimeter
+            ctx.beginPath();
+            ctx.arc(proj.px, proj.py, radarR, 0, Math.PI * 2);
+            ctx.strokeStyle = isCompromised
+              ? 'rgba(244, 63, 94, 0.8)'
+              : isRisk
+              ? 'rgba(245, 158, 11, 0.8)'
+              : 'rgba(52, 211, 153, 0.65)';
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([4, 3]);
+            ctx.stroke();
+
+            // Camp icon
+            ctx.font = 'bold 13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const markY = proj.py - (is2D ? 0 : 8);
+            ctx.fillText('⛺', proj.px, markY);
+
+            // Camp name label
+            ctx.font = 'bold 9px sans-serif';
+            ctx.fillStyle = isCompromised ? '#f43f5e' : isRisk ? '#f59e0b' : '#34d399';
+            ctx.fillText(campAtNode.name.split(' ')[0], proj.px, markY + 12);
+            ctx.restore();
+          }
+        }
       }
 
       ctx.restore();
@@ -600,6 +684,7 @@ export const FloodMap2D5: React.FC = () => {
     projectCoordinates,
     gmdaPumps,
     weatherStations,
+    rescueCamps,
   ]);
 
   return (
@@ -781,6 +866,96 @@ export const FloodMap2D5: React.FC = () => {
                   <div>Humidity: <strong className="text-slate-200 font-mono">{selectedAWS.humidityPercent}%</strong></div>
                   <div>Wind: <strong className="text-slate-200 font-mono">{selectedAWS.windSpeedKmh} km/h</strong></div>
                 </div>
+              </div>
+            )}
+
+            {/* Rescue Camp Widget (If deployed at this coordinate) */}
+            {selectedCamp && (
+              <div className="rounded-md bg-emerald-950/30 p-2.5 border border-emerald-500/40 text-[11px] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+                    <Tent className="h-3.5 w-3.5 text-emerald-400" />
+                    {selectedCamp.name}
+                  </span>
+                  <Badge size="xs" variant="safe">{selectedCamp.type.replace('_', ' ')}</Badge>
+                </div>
+                <div className="text-[10px] text-slate-300">
+                  Occupancy: <strong className="text-white font-mono">{selectedCamp.currentOccupancy.toLocaleString()} / {selectedCamp.capacity.toLocaleString()}</strong> ({Math.round((selectedCamp.currentOccupancy / selectedCamp.capacity) * 100)}%)
+                </div>
+                <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-300">
+                  <div>Food: <strong className="text-amber-300 font-mono">{selectedCamp.supplies.foodRationsDays} days</strong></div>
+                  <div>Water: <strong className="text-blue-300 font-mono">{selectedCamp.supplies.potableWaterLiters.toLocaleString()} L</strong></div>
+                  <div>Boats: <strong className="text-cyan-300 font-mono">{selectedCamp.supplies.rescueBoats} rafts</strong></div>
+                  <div>Med Kits: <strong className="text-rose-300 font-mono">{selectedCamp.supplies.medicalKits}</strong></div>
+                </div>
+                <Button
+                  size="xs"
+                  variant="cyan"
+                  onClick={() => setActiveModal('rescue_camps')}
+                  className="w-full text-[10px] h-6 mt-1"
+                >
+                  Manage Camp & Supplies
+                </Button>
+              </div>
+            )}
+
+            {/* High Ground Candidate for Rescue Camp */}
+            {isHighGroundCandidate && (
+              <div className="rounded-md bg-amber-950/25 p-2.5 border border-amber-500/40 text-[11px] space-y-1.5">
+                <div className="flex items-center justify-between text-amber-300 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                    Elevated Refuge Candidate
+                  </span>
+                  <Badge size="xs" variant="warning">SUITABLE</Badge>
+                </div>
+                <p className="text-[10px] text-slate-300">
+                  High ground ({selectedNode.elevation.toFixed(1)}m MSL) with zero flood ponding. Strategic site for establishing a relief sanctuary.
+                </p>
+                <Button
+                  size="xs"
+                  variant="cyan"
+                  onClick={() => {
+                    deployRescueCamp({
+                      gridX: selectedNode.x,
+                      gridY: selectedNode.y,
+                      name: `${selectedNode.name.replace(/\[\d+,\d+\]/, '').trim()} Relief Camp`,
+                      type: 'MASS_SHELTER',
+                      capacity: 4000,
+                    });
+                    playTacticalAlertSound('action');
+                  }}
+                  className="w-full text-[10px] h-6 font-bold"
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Deploy Rescue Camp Here
+                </Button>
+              </div>
+            )}
+
+            {/* Nearest Safe Haven Route (for flooded / at-risk sectors) */}
+            {nearestCampInfo?.camp && (selectedNode.status === 'CRITICAL' || selectedNode.status === 'WARNING') && (
+              <div className="rounded-md bg-slate-900/90 p-2.5 border border-emerald-500/30 text-[11px] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[10px]">Nearest Safe Camp:</span>
+                  <span className="font-mono text-[10px] text-emerald-400 font-bold">{nearestCampInfo.distanceKm} km</span>
+                </div>
+                <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                  <Tent className="h-3.5 w-3.5 text-emerald-400" />
+                  {nearestCampInfo.camp.name}
+                </div>
+                <Button
+                  size="xs"
+                  variant="cyan"
+                  onClick={() => {
+                    if (nearestCampInfo.camp) {
+                      evacuateResidentsToCamp(selectedNode.id, nearestCampInfo.camp.id, 800);
+                      playTacticalAlertSound('action');
+                    }
+                  }}
+                  className="w-full text-[10px] h-6"
+                >
+                  <MoveRight className="h-3 w-3 mr-1" /> Evacuate 800 Residents to Camp
+                </Button>
               </div>
             )}
 

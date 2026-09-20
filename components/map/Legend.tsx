@@ -63,22 +63,22 @@ export const Legend: React.FC = () => {
       </div>
 
       {/* Hardware & Strategic Facilities */}
-      <div className="grid grid-cols-4 gap-1 pt-1 border-t border-slate-800 text-[10px] text-slate-300">
+      <div className="grid grid-cols-2 gap-1 pt-1 border-t border-slate-800 text-[10px] text-slate-300">
         <div className="flex items-center gap-1" title="20 GMDA Auto-Priming Dewatering Pumps">
           <span>🌀</span>
-          <span className="text-cyan-300">GMDA Pump</span>
+          <span className="text-cyan-300">GMDA Dewatering Pump</span>
         </div>
         <div className="flex items-center gap-1" title="18 Automatic Weather Stations (AWS)">
           <span>📡</span>
-          <span className="text-amber-300">AWS Station</span>
+          <span className="text-amber-300">18 AWS Weather Stations</span>
         </div>
-        <div className="flex items-center gap-1" title="Deepor Beel Ramsar Wetland">
-          <span>🌿</span>
-          <span className="text-emerald-300">Deepor Beel</span>
+        <div className="flex items-center gap-1" title="Strategic High-Ground Relief Sanctuary">
+          <span>⛺</span>
+          <span className="text-emerald-300 font-semibold">Rescue Camps (Relief Hub)</span>
         </div>
-        <div className="flex items-center gap-1" title="Assam Secretariat & Hospitals">
+        <div className="flex items-center gap-1" title="Assam Secretariat & GMCH Apex Hospital">
           <span>🏛️</span>
-          <span>Capital / GMCH</span>
+          <span>Capital / GMCH / Deepor Beel</span>
         </div>
       </div>
     </div>

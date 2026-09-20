@@ -14,7 +14,11 @@ export async function GET() {
       gemini: { configured: status.gemini, role: 'Emergency Crisis Reasoning (Gemini 2.5 Flash)' },
       groqWhisper: { configured: status.groqWhisper, role: 'Ultra-Fast Speech Transcription' },
       elevenLabs: { configured: status.elevenLabs, role: 'Tactical Voice Synthesis (Flash v2.5)' },
-      exotel: { configured: status.exotel, role: 'Automated Telephony & Outbound Call Dispatch' },
+      exotel: {
+        configured: status.exotel,
+        role: 'Automated Telephony & Outbound Call Dispatch',
+        details: status.exotelDetails,
+      },
     },
     metrics: {
       activeCalls: status.activeSessions,
@@ -30,11 +34,11 @@ export async function POST(req: NextRequest) {
     const agent = getEmergencyVoiceAgent();
 
     if (body.action === 'dispatch_phone') {
-      const { phone, location = 'Bahini Basin', threatLevel = 'CRITICAL' } = body;
+      const { phone, location = 'Bahini Basin', threatLevel = 'CRITICAL', callerId, fromPhone } = body;
       if (!phone) {
         return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
       }
-      const result = await agent.dispatchExotelAlert(phone, location, threatLevel);
+      const result = await agent.dispatchExotelAlert(phone, location, threatLevel, callerId, fromPhone);
       return NextResponse.json(result);
     }
 

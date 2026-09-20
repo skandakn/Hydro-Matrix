@@ -38,6 +38,8 @@ import {
   Cpu,
   Power,
   Info,
+  Tent,
+  Sparkles,
 } from 'lucide-react';
 
 export const LeftDrawer: React.FC = () => {
@@ -51,6 +53,10 @@ export const LeftDrawer: React.FC = () => {
     activePumpIds,
     activePumps,
     rainfall,
+    rescueCamps,
+    totalShelteredEvacuees,
+    totalRescueCapacity,
+    autoDeployRecommendedCamps,
     togglePlayPause,
     stepForward6Hours,
     stepBackward6Hours,
@@ -65,7 +71,7 @@ export const LeftDrawer: React.FC = () => {
     removeDisaster,
   } = useFloodSimulation();
 
-  const { isLeftDrawerOpen, setIsLeftDrawerOpen, playTacticalAlertSound } = useUIContext();
+  const { isLeftDrawerOpen, setIsLeftDrawerOpen, playTacticalAlertSound, setActiveModal } = useUIContext();
 
   const [pumpsExpanded, setPumpsExpanded] = useState(false);
 
@@ -231,6 +237,58 @@ export const LeftDrawer: React.FC = () => {
                   <span>Auto-Step Simulation (6h cycle)</span>
                 </>
               )}
+            </Button>
+          </div>
+        </div>
+
+        {/* --- CIVIL DEFENSE RESCUE CAMPS QUICK ACCESS --- */}
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-3.5 space-y-2.5 shadow-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+              <Tent className="h-4 w-4 text-emerald-400" />
+              <span>Rescue Camps & Logistics</span>
+            </div>
+            <Badge variant="safe" className="text-[10px] font-mono">
+              {rescueCamps.length} ACTIVE
+            </Badge>
+          </div>
+
+          <div className="rounded-lg bg-slate-950/80 border border-slate-800 p-2.5 grid grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <span className="text-slate-400 block text-[10px]">Sheltered Citizens:</span>
+              <strong className="text-emerald-300 font-mono text-sm">{totalShelteredEvacuees.toLocaleString()}</strong>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px]">Total Bed Capacity:</span>
+              <strong className="text-white font-mono text-sm">{totalRescueCapacity.toLocaleString()}</strong>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="xs"
+              variant="cyan"
+              onClick={() => {
+                setActiveModal('rescue_camps');
+                playTacticalAlertSound('action');
+              }}
+              className="flex-1 h-7 text-[11px] font-bold gap-1"
+            >
+              <Tent className="h-3 w-3" />
+              Open Rescue Command
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => {
+                autoDeployRecommendedCamps();
+                playTacticalAlertSound('action');
+              }}
+              className="h-7 text-[10px] border-emerald-500/40 text-emerald-300 hover:bg-emerald-950/50"
+              title="Automatically deploy top algorithmically recommended camps"
+            >
+              <Sparkles className="h-3 w-3 mr-1 text-amber-400" />
+              Auto-Deploy
             </Button>
           </div>
         </div>

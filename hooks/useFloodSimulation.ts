@@ -30,6 +30,10 @@ import {
   ScenarioComparisonRecord,
   AutomaticWeatherStation,
   GMDAPumpStation,
+  RescueCamp,
+  RescueCampType,
+  RescueCampSupplies,
+  CampRecommendationSite,
 } from '@/types/simulation';
 import {
   generateCityGrid,
@@ -41,6 +45,12 @@ import {
 } from '@/lib/simulation-engine/cityGrid';
 import { runSimulationStep as runSimulationStepPhysics } from '@/lib/simulation-engine/physics';
 import { PRESET_SCENARIOS } from '@/lib/simulation-engine/scenarios';
+import {
+  DEFAULT_LANDMARK_CAMPS,
+  getRecommendedCampSites,
+  checkCampFloodHazards,
+  getNearestSafeCamp,
+} from '@/lib/simulation-engine/rescueCampEngine';
 
 const MAX_HISTORY_BUFFER = 400;
 
@@ -68,6 +78,12 @@ export interface FloodSimulationStore {
   activePumpIds: Set<string>;
   bahiniBharaluFlowM3S: number;
   activePumpsCount: number;
+
+  // --- 3.5. Guwahati Civil Defense & Rescue Camps ---
+  rescueCamps: RescueCamp[];
+  recommendedSites: CampRecommendationSite[];
+  totalShelteredEvacuees: number;
+  totalRescueCapacity: number;
 
   // --- 4. Existing Aliases & Metrics (Backwards Compatible) ---
   currentTick: number; // alias for tick
@@ -116,6 +132,31 @@ export interface FloodSimulationStore {
   toggleCellEvacuation: (cellId: string) => void;
   selectCell: (cellId: string | null) => void;
   generateComparisonBenchmarks: () => void;
+
+  // --- Rescue Camp Actions ---
+  deployRescueCamp: (site: {
+    gridX: number;
+    gridY: number;
+    name: string;
+    type: RescueCampType;
+    capacity: number;
+    contactPerson?: string;
+    contactPhone?: string;
+  }) => void;
+  dismantleRescueCamp: (campId: string) => void;
+  relocateRescueCamp: (campId: string, newX: number, newY: number) => void;
+  autoDeployRecommendedCamps: () => void;
+  dispatchSupplies: (
+    campId: string,
+    supplyType: keyof RescueCampSupplies,
+    delta: number
+  ) => void;
+  evacuateResidentsToCamp: (
+    cellId: string,
+    campId?: string,
+    count?: number
+  ) => void;
+  evacuateAllCriticalZonesToCamps: () => void;
 }
 
 const DEFAULT_CONFIG: SimulationConfig = {
@@ -191,6 +232,12 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
     activePumpIds: initialActivePumps,
     bahiniBharaluFlowM3S: 32.5,
     activePumpsCount: 20,
+
+    // Rescue Camps State
+    rescueCamps: [...DEFAULT_LANDMARK_CAMPS],
+    recommendedSites: getRecommendedCampSites(initialFlat, DEFAULT_LANDMARK_CAMPS, 6),
+    totalShelteredEvacuees: DEFAULT_LANDMARK_CAMPS.reduce((acc, c) => acc + c.currentOccupancy, 0),
+    totalRescueCapacity: DEFAULT_LANDMARK_CAMPS.reduce((acc, c) => acc + c.capacity, 0),
 
     history: [initialSnapshot],
     telemetryHistory: [initialTelemetry],
@@ -298,6 +345,12 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       const updatedTelemetry = [...state.telemetryHistory, newTelemetryPoint];
       if (updatedTelemetry.length > 60) updatedTelemetry.shift();
 
+      // Check active camps for flood encroachment and update recommendations
+      const updatedCamps = checkCampFloodHazards(state.rescueCamps, result.nextGrid);
+      const updatedRecommendations = getRecommendedCampSites(result.nextGrid, updatedCamps, 6);
+      const sheltered = updatedCamps.reduce((sum, c) => sum + c.currentOccupancy, 0);
+      const totalCap = updatedCamps.reduce((sum, c) => sum + c.capacity, 0);
+
       set({
         grid: result.nextGrid2D,
         flatGrid: result.nextGrid,
@@ -320,6 +373,10 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
         activePumpsCount: result.activePumpsCount,
         gmdaPumps: updatedPumps,
         weatherStations: updatedStations,
+        rescueCamps: updatedCamps,
+        recommendedSites: updatedRecommendations,
+        totalShelteredEvacuees: sheltered,
+        totalRescueCapacity: totalCap,
         history: updatedHistory,
         telemetryHistory: updatedTelemetry,
       });
@@ -884,6 +941,272 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       });
 
       set({ comparisonData: records });
+    },
+
+    deployRescueCamp: (site) => {
+      const state = get();
+      const cell = state.flatGrid.find(n => n.x === site.gridX && n.y === site.gridY);
+      const elevation = cell ? cell.elevation : 55.0;
+
+      const newCamp: RescueCamp = {
+        id: `camp-${Date.now()}`,
+        name: site.name,
+        type: site.type,
+        gridX: site.gridX,
+        gridY: site.gridY,
+        elevationMeters: elevation,
+        capacity: site.capacity,
+        currentOccupancy: 0,
+        status: 'OPERATIONAL',
+        contactPerson: site.contactPerson || 'Assam Civil Defense Liaison',
+        contactPhone: site.contactPhone || '+91 361 223 7000',
+        supplies: {
+          foodRationsDays: 7,
+          potableWaterLiters: Math.round(site.capacity * 6),
+          medicalKits: Math.round(site.capacity * 0.1),
+          rescueBoats: site.type === 'NDRF_TACTICAL_BASE' ? 8 : 4,
+          powerGenerators: 4,
+          sanitationUnits: Math.round(site.capacity * 0.008),
+          blanketsAndBeds: Math.round(site.capacity * 0.9),
+        },
+        coveredSectorIds: [
+          `cell-${site.gridX}-${site.gridY}`,
+          `cell-${Math.max(0, site.gridX - 1)}-${site.gridY}`,
+          `cell-${Math.min(17, site.gridX + 1)}-${site.gridY}`,
+          `cell-${site.gridX}-${Math.max(0, site.gridY - 1)}`,
+          `cell-${site.gridX}-${Math.min(17, site.gridY + 1)}`,
+        ],
+        establishedTick: state.tick,
+        isRecommended: false,
+      };
+
+      const nextCamps = [...state.rescueCamps, newCamp];
+      const updatedRecs = getRecommendedCampSites(state.flatGrid, nextCamps, 6);
+      set({
+        rescueCamps: nextCamps,
+        recommendedSites: updatedRecs,
+        totalRescueCapacity: nextCamps.reduce((sum, c) => sum + c.capacity, 0),
+      });
+    },
+
+    dismantleRescueCamp: (campId: string) => {
+      const state = get();
+      const nextCamps = state.rescueCamps.filter(c => c.id !== campId);
+      const updatedRecs = getRecommendedCampSites(state.flatGrid, nextCamps, 6);
+      set({
+        rescueCamps: nextCamps,
+        recommendedSites: updatedRecs,
+        totalShelteredEvacuees: nextCamps.reduce((sum, c) => sum + c.currentOccupancy, 0),
+        totalRescueCapacity: nextCamps.reduce((sum, c) => sum + c.capacity, 0),
+      });
+    },
+
+    relocateRescueCamp: (campId: string, newX: number, newY: number) => {
+      const state = get();
+      const cell = state.flatGrid.find(n => n.x === newX && n.y === newY);
+      const elevation = cell ? cell.elevation : 60.0;
+
+      const nextCamps = state.rescueCamps.map(c => {
+        if (c.id === campId) {
+          return {
+            ...c,
+            gridX: newX,
+            gridY: newY,
+            elevationMeters: elevation,
+            status: 'OPERATIONAL' as const,
+            riskAlert: undefined,
+            coveredSectorIds: [
+              `cell-${newX}-${newY}`,
+              `cell-${Math.max(0, newX - 1)}-${newY}`,
+              `cell-${Math.min(17, newX + 1)}-${newY}`,
+              `cell-${newX}-${Math.max(0, newY - 1)}`,
+              `cell-${newX}-${Math.min(17, newY + 1)}`,
+            ],
+          };
+        }
+        return c;
+      });
+
+      const updatedRecs = getRecommendedCampSites(state.flatGrid, nextCamps, 6);
+      set({
+        rescueCamps: nextCamps,
+        recommendedSites: updatedRecs,
+      });
+    },
+
+    autoDeployRecommendedCamps: () => {
+      const state = get();
+      const recs = state.recommendedSites.slice(0, 4);
+      if (recs.length === 0) return;
+
+      const newDeployed: RescueCamp[] = recs.map((rec, idx) => ({
+        id: `camp-auto-${Date.now()}-${idx}`,
+        name: `${rec.name} Relief Base`,
+        type: rec.suggestedCampType,
+        gridX: rec.gridX,
+        gridY: rec.gridY,
+        elevationMeters: rec.elevationMeters,
+        capacity: rec.suggestedCapacity,
+        currentOccupancy: 0,
+        status: 'OPERATIONAL' as const,
+        contactPerson: 'NDRF Rapid Deployment Unit',
+        contactPhone: '+91 361 223 7100',
+        supplies: {
+          foodRationsDays: 6,
+          potableWaterLiters: rec.recommendedSupplies.potableWaterLiters || 25000,
+          medicalKits: rec.recommendedSupplies.medicalKits || 400,
+          rescueBoats: rec.recommendedSupplies.rescueBoats || 4,
+          powerGenerators: 4,
+          sanitationUnits: rec.recommendedSupplies.sanitationUnits || 30,
+          blanketsAndBeds: rec.recommendedSupplies.blanketsAndBeds || 3000,
+        },
+        coveredSectorIds: [
+          rec.cellId,
+          `cell-${Math.max(0, rec.gridX - 1)}-${rec.gridY}`,
+          `cell-${Math.min(17, rec.gridX + 1)}-${rec.gridY}`,
+          `cell-${rec.gridX}-${Math.max(0, rec.gridY - 1)}`,
+          `cell-${rec.gridX}-${Math.min(17, rec.gridY + 1)}`,
+        ],
+        establishedTick: state.tick,
+        isRecommended: true,
+      }));
+
+      const nextCamps = [...state.rescueCamps, ...newDeployed];
+      const updatedRecs = getRecommendedCampSites(state.flatGrid, nextCamps, 6);
+      set({
+        rescueCamps: nextCamps,
+        recommendedSites: updatedRecs,
+        totalRescueCapacity: nextCamps.reduce((sum, c) => sum + c.capacity, 0),
+      });
+    },
+
+    dispatchSupplies: (campId: string, supplyType: keyof RescueCampSupplies, delta: number) => {
+      set(state => {
+        const nextCamps = state.rescueCamps.map(camp => {
+          if (camp.id === campId) {
+            const cur = camp.supplies[supplyType];
+            return {
+              ...camp,
+              supplies: {
+                ...camp.supplies,
+                [supplyType]: Math.max(0, cur + delta),
+              },
+            };
+          }
+          return camp;
+        });
+        return { rescueCamps: nextCamps };
+      });
+    },
+
+    evacuateResidentsToCamp: (cellId: string, campId?: string, count?: number) => {
+      const state = get();
+      const targetCell = state.flatGrid.find(n => n.id === cellId);
+      if (!targetCell) return;
+
+      const numToEvac = count !== undefined ? Math.min(count, targetCell.population) : Math.min(800, targetCell.population);
+      if (numToEvac <= 0) return;
+
+      const eligible = state.rescueCamps.filter(
+        c => (c.status === 'OPERATIONAL' || c.status === 'NEAR_CAPACITY') && c.currentOccupancy < c.capacity
+      );
+      const camp = campId
+        ? eligible.find(c => c.id === campId) || eligible[0]
+        : eligible[0];
+
+      if (!camp) return;
+
+      const capacityRemaining = camp.capacity - camp.currentOccupancy;
+      const actualEvac = Math.min(numToEvac, capacityRemaining);
+      if (actualEvac <= 0) return;
+
+      const nextCamps = state.rescueCamps.map(c => {
+        if (c.id === camp.id) {
+          const occ = c.currentOccupancy + actualEvac;
+          return {
+            ...c,
+            currentOccupancy: occ,
+            status: occ >= c.capacity ? ('AT_CAPACITY' as const) : occ >= c.capacity * 0.85 ? ('NEAR_CAPACITY' as const) : c.status,
+          };
+        }
+        return c;
+      });
+
+      const nextGrid = state.grid.map(row =>
+        row.map(n => {
+          if (n.id === cellId) {
+            return {
+              ...n,
+              population: Math.max(0, n.population - actualEvac),
+              evacuationOrdered: true,
+            };
+          }
+          return n;
+        })
+      );
+
+      set({
+        grid: nextGrid,
+        flatGrid: nextGrid.flat(),
+        rescueCamps: nextCamps,
+        totalShelteredEvacuees: nextCamps.reduce((sum, c) => sum + c.currentOccupancy, 0),
+      });
+    },
+
+    evacuateAllCriticalZonesToCamps: () => {
+      const state = get();
+      const critCells = state.flatGrid.filter(
+        n => (n.status === 'CRITICAL' || n.status === 'WARNING') && n.population > 0
+      );
+
+      if (critCells.length === 0) return;
+
+      const camps = [...state.rescueCamps];
+      const cellMap = new Map<string, number>();
+
+      for (const cell of critCells) {
+        let remainingToEvac = Math.min(cell.population, 1200);
+
+        for (let i = 0; i < camps.length; i++) {
+          const c = camps[i];
+          if ((c.status === 'OPERATIONAL' || c.status === 'NEAR_CAPACITY') && c.currentOccupancy < c.capacity) {
+            const avail = c.capacity - c.currentOccupancy;
+            const take = Math.min(remainingToEvac, avail);
+            if (take > 0) {
+              const newOcc = c.currentOccupancy + take;
+              camps[i] = {
+                ...c,
+                currentOccupancy: newOcc,
+                status: newOcc >= c.capacity ? 'AT_CAPACITY' : newOcc >= c.capacity * 0.85 ? 'NEAR_CAPACITY' : c.status,
+              };
+              remainingToEvac -= take;
+              cellMap.set(cell.id, (cellMap.get(cell.id) || 0) + take);
+            }
+          }
+          if (remainingToEvac <= 0) break;
+        }
+      }
+
+      const nextGrid = state.grid.map(row =>
+        row.map(n => {
+          const evacuated = cellMap.get(n.id);
+          if (evacuated) {
+            return {
+              ...n,
+              population: Math.max(0, n.population - evacuated),
+              evacuationOrdered: true,
+            };
+          }
+          return n;
+        })
+      );
+
+      set({
+        grid: nextGrid,
+        flatGrid: nextGrid.flat(),
+        rescueCamps: camps,
+        totalShelteredEvacuees: camps.reduce((sum, c) => sum + c.currentOccupancy, 0),
+      });
     },
   };
 });

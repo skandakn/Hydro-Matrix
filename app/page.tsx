@@ -29,6 +29,7 @@ import { EvacuationAdvisor } from '@/components/dashboard/EvacuationAdvisor';
 import { SitRepModal } from '@/components/dashboard/SitRepModal';
 import { GMDAInfoModal } from '@/components/dashboard/GMDAInfoModal';
 import { EmergencyVoiceHelplineModal } from '@/components/dashboard/EmergencyVoiceHelplineModal';
+import { RescueCampModal } from '@/components/dashboard/RescueCampModal';
 
 export default function CrisisCommandPage() {
   const {
@@ -120,6 +121,7 @@ export default function CrisisCommandPage() {
       <EvacuationAdvisor />
       <SitRepModal />
       <EmergencyVoiceHelplineModal />
+      <RescueCampModal />
     </main>
   );
 }

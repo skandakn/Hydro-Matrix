@@ -79,6 +79,7 @@ export class EmergencyVoiceAgent {
       groqWhisper: this.groq.isConfigured(),
       elevenLabs: this.elevenLabs.isConfigured(),
       exotel: this.exotel.isConfigured(),
+      exotelDetails: this.exotel.getConfigurationDetails(),
       activeSessions: Array.from(callStore.values()).filter((c) => c.status === 'active').length,
       totalLoggedCalls: callStore.size,
     };
@@ -191,9 +192,11 @@ export class EmergencyVoiceAgent {
   public async dispatchExotelAlert(
     phone: string,
     location: string,
-    threatLevel: string
-  ): Promise<{ success: boolean; callId?: string; error?: string }> {
-    const res = await this.exotel.createCall(phone);
+    threatLevel: string,
+    callerId?: string,
+    fromPhone?: string
+  ): Promise<{ success: boolean; callId?: string; error?: string; diagnostic?: string }> {
+    const res = await this.exotel.createCall(phone, fromPhone, callerId);
     if (res.success) {
       const session = this.createSession(phone, 'phone');
       session.exotelCallId = res.callId;

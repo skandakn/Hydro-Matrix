@@ -120,6 +120,67 @@ export interface GridNode {
   channel: RecognizedDrainageChannel | null;
   awsStationId?: string;
   gmdaPumpId?: string;
+  rescueCampId?: string;
+  isRecommendedCampSite?: boolean;
+}
+
+export type RescueCampType =
+  | 'APEX_MEDICAL'
+  | 'MASS_SHELTER'
+  | 'SUPPLY_DISTRIBUTION'
+  | 'NDRF_TACTICAL_BASE';
+
+export type RescueCampStatus =
+  | 'OPERATIONAL'
+  | 'NEAR_CAPACITY'
+  | 'AT_CAPACITY'
+  | 'AT_RISK_FLOODING'
+  | 'COMPROMISED';
+
+export interface RescueCampSupplies {
+  foodRationsDays: number;
+  potableWaterLiters: number;
+  medicalKits: number;
+  rescueBoats: number;
+  powerGenerators: number;
+  sanitationUnits: number;
+  blanketsAndBeds: number;
+}
+
+export interface RescueCamp {
+  id: string;
+  name: string;
+  assameseName?: string;
+  type: RescueCampType;
+  gridX: number;
+  gridY: number;
+  elevationMeters: number;
+  capacity: number;
+  currentOccupancy: number;
+  status: RescueCampStatus;
+  contactPerson: string;
+  contactPhone: string;
+  supplies: RescueCampSupplies;
+  coveredSectorIds: string[];
+  establishedTick: number;
+  isRecommended: boolean;
+  riskAlert?: string;
+}
+
+export interface CampRecommendationSite {
+  gridX: number;
+  gridY: number;
+  cellId: string;
+  name: string;
+  elevationMeters: number;
+  currentWaterLevel: number;
+  suitabilityScore: number; // 0 to 100
+  suitabilityReason: string;
+  nearbyPopulationAtRisk: number;
+  nearestRoadAccess: string;
+  suggestedCampType: RescueCampType;
+  suggestedCapacity: number;
+  recommendedSupplies: Partial<RescueCampSupplies>;
 }
 
 export type SimulationCell = GridNode;
@@ -226,5 +287,6 @@ export interface MapViewSettings {
   showInfrastructureMarkers: boolean;
   showPrimaryChannels: boolean;
   showWeatherStations: boolean;
+  showRescueCamps: boolean;
   selectedCellId: string | null;
 }

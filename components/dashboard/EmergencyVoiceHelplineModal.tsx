@@ -16,6 +16,7 @@ import {
   MapPin,
   CheckCircle2,
   Bot,
+  Headphones,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
   }[]>([
     {
       speaker: 'assistant',
-      text: 'FLOWSHIELD Emergency Hotline: Guwahati Bahini-Bharalu Basin Crisis Command. Please state your location and flood situation.',
+      text: 'HYDRO MATRIX Emergency Hotline: Guwahati Bahini-Bharalu Basin Crisis Command. Please state your location and flood situation.',
       time: '00:00',
     },
   ]);
@@ -49,10 +50,23 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
   const [callId] = useState(`call_${Date.now()}`);
 
   // Telephony dispatch state
-  const [dispatchPhone, setDispatchPhone] = useState('+91 98640 ');
-  const [dispatchLocation, setDispatchLocation] = useState('Anil Nagar (Bharalu Basin)');
+  const [dispatchPhone, setDispatchPhone] = useState('+91 8088347176');
+  const [dispatchCallerId, setDispatchCallerId] = useState('');
+  const [dispatchLocation, setDispatchLocation] = useState('Anil Nagar (Bharalu Basin - High Risk)');
   const [dispatchStatus, setDispatchStatus] = useState<string | null>(null);
+  const [dispatchDiagnostic, setDispatchDiagnostic] = useState<string | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [exotelInfo, setExotelInfo] = useState<{
+    configured?: boolean;
+    details?: {
+      hasSid?: boolean;
+      hasKey?: boolean;
+      hasToken?: boolean;
+      hasCallerId?: boolean;
+      sidIsApiKeyMismatch?: boolean;
+      callerId?: string;
+    };
+  } | null>(null);
 
   // Call logs
   const [callLogs, setCallLogs] = useState<CallSession[]>([]);
@@ -287,6 +301,12 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
         .then((res) => res.json())
         .then((data) => {
           if (data.recentCalls) setCallLogs(data.recentCalls);
+          if (data.providers?.exotel) {
+            setExotelInfo(data.providers.exotel);
+            if (data.providers.exotel.details?.callerId) {
+              setDispatchCallerId(data.providers.exotel.details.callerId);
+            }
+          }
         })
         .catch(console.error);
     }
@@ -342,6 +362,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
     if (!dispatchPhone.trim()) return;
     setIsDispatching(true);
     setDispatchStatus('Contacting Exotel telephony gateway...');
+    setDispatchDiagnostic(null);
     playTacticalAlertSound('critical');
 
     try {
@@ -352,6 +373,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
           action: 'dispatch_phone',
           phone: dispatchPhone,
           location: dispatchLocation,
+          callerId: dispatchCallerId.trim() || undefined,
           threatLevel: 'CRITICAL',
         }),
       });
@@ -359,12 +381,15 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         setDispatchStatus(`Exotel Call Dispatched Successfully! SID: ${data.callId || 'EXO_CONNECTED'}`);
+        setDispatchDiagnostic('Exotel is initiating the outbound call. Please answer your incoming call.');
       } else {
-        setDispatchStatus(`Telephony notice: ${data.error || 'Outbound call queued'}`);
+        setDispatchStatus(`Telephony notice: ${data.error || 'Outbound call rejected by gateway'}`);
+        setDispatchDiagnostic(data.diagnostic || null);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown dispatch error';
       setDispatchStatus(`Dispatch error: ${message}`);
+      setDispatchDiagnostic(null);
     } finally {
       setIsDispatching(false);
     }
@@ -669,20 +694,56 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
           )}
 
           {activeTab === 'telephony' && (
-            <div className="flex flex-col gap-6 max-w-xl mx-auto py-4">
+            <div className="flex flex-col gap-5 max-w-xl mx-auto py-2">
+              {/* Quick Switch to Browser Voice Hotline */}
+              <div className="rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-950/40 to-blue-950/30 p-3.5 flex items-center justify-between gap-3 shadow-lg shadow-cyan-950/20">
+                <div className="flex items-start gap-2.5">
+                  <span className="text-xl">🎙️</span>
+                  <div>
+                    <h4 className="text-xs font-bold text-cyan-200">Want to talk to the AI right now?</h4>
+                    <p className="text-[11px] text-slate-300 leading-tight mt-0.5">
+                      The <strong className="text-cyan-400">Interactive Voice Hotline</strong> tab lets you speak directly using your microphone with live speech responses — zero setup needed!
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="cyan"
+                  size="sm"
+                  onClick={() => setActiveTab('voice')}
+                  className="shrink-0 text-xs px-3 py-1.5 h-auto font-semibold gap-1.5"
+                >
+                  <Headphones className="h-3.5 w-3.5" />
+                  <span>Start Voice Chat</span>
+                </Button>
+              </div>
+
+              {/* Exotel Outbound Telephony Info Banner */}
               <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4">
                 <div className="flex items-center gap-2 text-rose-400 font-bold text-sm mb-1">
                   <AlertTriangle className="h-4 w-4" />
-                  <span>Outbound Exotel Telephony Dispatch</span>
+                  <span>Outbound Exotel Telephony Dispatch (PSTN)</span>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
                   Trigger automated outbound emergency phone calls via Exotel to warn ward councilors, emergency SDRF boat units, or registered citizens in designated inundation zones.
                 </p>
               </div>
 
-              <div className="space-y-4">
+              {/* Exotel Configuration Diagnostics Notice */}
+              {exotelInfo?.details?.sidIsApiKeyMismatch && (
+                <div className="rounded-xl border border-amber-500/50 bg-amber-950/30 p-3.5 text-xs text-amber-200 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>Exotel Configuration Action Needed (Error 403 / 34009)</span>
+                  </div>
+                  <p className="text-[11px] text-amber-100/90 leading-relaxed">
+                    <code className="bg-amber-900/60 px-1 py-0.5 rounded text-amber-300 font-mono">EXOTEL_SID</code> in <code className="bg-amber-900/60 px-1 py-0.5 rounded text-amber-300 font-mono">.env.local</code> is currently set to your API Key. In Exotel, your Account SID is your <strong>Account Subdomain / Name</strong> (found in your Exotel dashboard URL <code className="text-amber-300 font-mono">my.exotel.com/&lt;account_name&gt;</code> or <strong>Settings &gt; API Settings</strong>).
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Target Mobile / Phone Number
                   </label>
                   <input
@@ -692,10 +753,29 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
                     placeholder="+91 XXXXX XXXXX"
                     className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:border-rose-500 focus:outline-none"
                   />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Note: On Exotel trial accounts, numbers must be pre-whitelisted in Exotel Dashboard &gt; Whitelist.
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    ExoPhone / Virtual Number (Caller ID)
+                  </label>
+                  <input
+                    type="text"
+                    value={dispatchCallerId}
+                    onChange={(e) => setDispatchCallerId(e.target.value)}
+                    placeholder="e.g. 0804719xxxx (ExoPhone assigned to your account)"
+                    className="w-full rounded-lg border border-slate-800 bg-slate-950 px-3.5 py-2 text-xs text-slate-100 font-mono focus:border-rose-500 focus:outline-none"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Exotel requires CallerId to be an active ExoPhone (virtual number) leased on your account.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Designated Critical Basin / Ward Location
                   </label>
                   <select
@@ -722,8 +802,15 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
                 </Button>
 
                 {dispatchStatus && (
-                  <div className="rounded-lg border border-slate-800 bg-slate-950/80 p-3 text-xs font-mono text-cyan-300">
-                    {dispatchStatus}
+                  <div className="rounded-lg border border-slate-800 bg-slate-950/90 p-3 text-xs space-y-1.5 font-mono">
+                    <div className={dispatchStatus.includes('Successfully') ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                      {dispatchStatus}
+                    </div>
+                    {dispatchDiagnostic && (
+                      <div className="text-[11px] text-amber-300/90 font-sans border-t border-slate-800 pt-1.5">
+                        💡 <strong>Diagnostic:</strong> {dispatchDiagnostic}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

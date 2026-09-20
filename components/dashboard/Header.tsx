@@ -31,10 +31,9 @@ import {
   Building2,
   LogIn,
   PhoneCall,
+  Tent,
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
-
-
 
 export const Header: React.FC = () => {
   const {
@@ -44,6 +43,8 @@ export const Header: React.FC = () => {
     warningZoneCount,
     activeDisasters,
     generateComparisonBenchmarks,
+    rescueCamps,
+    totalShelteredEvacuees,
   } = useFloodSimulation();
 
   const {
@@ -175,6 +176,24 @@ export const Header: React.FC = () => {
         >
           <BarChart3 className="h-3.5 w-3.5" />
           <span>Compare Scenarios</span>
+        </Button>
+
+        {/* Rescue Camps Intelligence & Staging Button */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setActiveModal('rescue_camps');
+            playTacticalAlertSound('action');
+          }}
+          className="gap-1.5 text-xs border-emerald-500/50 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/50 hover:border-emerald-400 shadow-sm shadow-emerald-950/40 group"
+          title="Open Rescue Camp Placement & Civil Defense Command"
+        >
+          <Tent className="h-3.5 w-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+          <span className="font-bold">Rescue Camps</span>
+          <span className="rounded bg-emerald-950/90 px-1.5 py-0.5 text-[9px] font-mono text-emerald-300 border border-emerald-500/30">
+            {rescueCamps.length} ({totalShelteredEvacuees.toLocaleString()})
+          </span>
         </Button>
 
         {/* Emergency Voice Helpline Button */}

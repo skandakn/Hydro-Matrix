@@ -19,10 +19,18 @@ import {
   Building2,
   AlertOctagon,
   Route,
+  Tent,
 } from 'lucide-react';
+import { getNearestSafeCamp } from '@/lib/simulation-engine/rescueCampEngine';
 
 export const EvacuationAdvisor: React.FC = () => {
-  const { grid, toggleCellEvacuation, selectCell } = useFloodSimulation();
+  const {
+    grid,
+    toggleCellEvacuation,
+    selectCell,
+    rescueCamps,
+    evacuateResidentsToCamp,
+  } = useFloodSimulation();
   const { activeModal, setActiveModal, playTacticalAlertSound } = useUIContext();
 
   if (activeModal !== 'evacuation') return null;
@@ -135,40 +143,55 @@ export const EvacuationAdvisor: React.FC = () => {
                   return (
                     <div
                       key={cell.id}
-                      className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 flex items-center justify-between"
+                      className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${isCrit ? 'bg-rose-950/80 text-rose-400' : 'bg-amber-950/80 text-amber-400'}`}>
-                          <Route className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-xs text-white">{cell.name}</h4>
-                            <Badge variant={isCrit ? 'critical' : 'warning'} className="text-[9px]">
-                              {isCrit ? 'CRITICAL BREACH' : `${cell.timeToCriticalMinutes} MIN TO CRITICAL`}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
-                            <span>Pop: <strong className="text-slate-200">{cell.population.toLocaleString()}</strong></span>
-                            <span>Water Depth: <strong className="text-cyan-300">{cell.currentWaterLevel.toFixed(2)}m</strong></span>
-                            <span>Recommended Route: <strong className="text-slate-200">North Highland Expressway</strong></span>
-                          </div>
-                        </div>
-                      </div>
+                      {(() => {
+                        const nearest = getNearestSafeCamp(cell, rescueCamps);
+                        return (
+                          <>
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${isCrit ? 'bg-rose-950/80 text-rose-400' : 'bg-amber-950/80 text-amber-400'}`}>
+                                <Route className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-xs text-white">{cell.name}</h4>
+                                  <Badge variant={isCrit ? 'critical' : 'warning'} className="text-[9px]">
+                                    {isCrit ? 'CRITICAL BREACH' : `${cell.timeToCriticalMinutes} MIN TO CRITICAL`}
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 mt-1">
+                                  <span>Pop: <strong className="text-slate-200">{cell.population.toLocaleString()}</strong></span>
+                                  <span>Water Depth: <strong className="text-cyan-300">{cell.currentWaterLevel.toFixed(2)}m</strong></span>
+                                  {nearest.camp && (
+                                    <span className="flex items-center gap-1 text-emerald-300 font-semibold">
+                                      <Tent className="h-3 w-3" />
+                                      Safe Refuge: {nearest.camp.name} ({nearest.distanceKm} km)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
 
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="xs"
-                          variant={cell.evacuationOrdered ? 'destructive' : 'secondary'}
-                          onClick={() => {
-                            toggleCellEvacuation(cell.id);
-                            playTacticalAlertSound('critical');
-                          }}
-                          className="text-[11px]"
-                        >
-                          {cell.evacuationOrdered ? 'Evacuation Ordered' : 'Issue Mandatory Evac'}
-                        </Button>
-                      </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="xs"
+                                variant={cell.evacuationOrdered ? 'destructive' : 'secondary'}
+                                onClick={() => {
+                                  toggleCellEvacuation(cell.id);
+                                  if (nearest.camp) {
+                                    evacuateResidentsToCamp(cell.id, nearest.camp.id, 800);
+                                  }
+                                  playTacticalAlertSound('critical');
+                                }}
+                                className="text-[11px]"
+                              >
+                                {cell.evacuationOrdered ? 'Evac In Progress' : 'Issue Mandatory Evac'}
+                              </Button>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -178,7 +201,17 @@ export const EvacuationAdvisor: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end border-t border-slate-800 pt-3">
+        <div className="flex items-center justify-between border-t border-slate-800 pt-3">
+          <Button
+            size="sm"
+            variant="cyan"
+            onClick={() => setActiveModal('rescue_camps')}
+            className="text-xs font-bold gap-1.5"
+          >
+            <Tent className="h-3.5 w-3.5" />
+            <span>Open Rescue Camp Command Center</span>
+          </Button>
+
           <Button size="sm" variant="outline" onClick={() => setActiveModal('none')}>
             Close Advisor
           </Button>

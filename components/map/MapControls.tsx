@@ -15,6 +15,7 @@ import {
   VolumeX,
   Radio,
   Cpu,
+  Tent,
 } from 'lucide-react';
 
 export const MapControls: React.FC = () => {
@@ -111,6 +112,23 @@ export const MapControls: React.FC = () => {
             20 GMDA Pumps
           </span>
           <Eye className={`h-3 w-3 ${mapSettings.showDrainagePumps ? 'text-blue-400' : 'text-slate-600'}`} />
+        </button>
+
+        {/* Rescue Camps Overlay */}
+        <button
+          type="button"
+          onClick={() => toggleLayer('showRescueCamps')}
+          className={`flex items-center justify-between gap-2 rounded px-2 py-1 text-left transition-colors ${
+            mapSettings.showRescueCamps
+              ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/30'
+              : 'text-slate-400 hover:bg-slate-900'
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Tent className="h-3.5 w-3.5 text-emerald-400" />
+            Rescue Camps (⛺)
+          </span>
+          <Eye className={`h-3 w-3 ${mapSettings.showRescueCamps ? 'text-emerald-400' : 'text-slate-600'}`} />
         </button>
 
         {/* Water Depth Heatmap */}
