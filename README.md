@@ -162,9 +162,6 @@ $$\text{Gate State} = \begin{cases}
 & Q_{\text{gravity}} = 0, \quad Q_{\text{outfall}} = \sum_{k \in \text{Pumps}} Q_{\text{mechanical}, k}
 \end{cases}$$
 
-> [!WARNING]
-> When the Brahmaputra River exceeds $49.5\text{ m}$ (Warning Level: $49.68\text{ m}$, Danger Level: $50.50\text{ m}$), the Bharalumukh sluice gates must close immediately to prevent the massive river from reversing into the city. Gravity drainage drops to **zero**, making the 20 GMDA auto-priming pumps the city's sole line of defense!
-
 ---
 
 ### 6. Mechanical Dewatering: 20 GMDA Pump Stations Formulation
