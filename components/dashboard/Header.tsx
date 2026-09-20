@@ -249,7 +249,7 @@ export const Header: React.FC = () => {
           <span className="hidden xl:inline">{t('compareScenarios')}</span>
         </Button>
 
-        {/* Rescue Camps Intelligence & Staging Button */}
+        {/* Relief Camps Intelligence & Staging Button */}
         <Button
           size="sm"
           variant="outline"
@@ -258,10 +258,10 @@ export const Header: React.FC = () => {
             playTacticalAlertSound('action');
           }}
           className="gap-1.5 text-xs border-emerald-500/50 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/50 hover:border-emerald-400 shadow-sm shadow-emerald-950/40 group px-2 sm:px-2.5"
-          title={t('rescueCamps')}
+          title={t('rescueCamps', 'Relief Camps')}
         >
           <Tent className="h-3.5 w-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
-          <span className="font-bold hidden md:inline">{t('rescueCamps')}</span>
+          <span className="font-bold inline">{t('rescueCamps', 'Relief Camps')}</span>
           <span className="rounded bg-emerald-950/90 px-1.5 py-0.5 text-[9px] font-mono text-emerald-300 border border-emerald-500/30">
             {rescueCamps.length} <span className="hidden sm:inline">({totalShelteredEvacuees.toLocaleString()})</span>
           </span>

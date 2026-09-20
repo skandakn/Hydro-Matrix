@@ -100,7 +100,7 @@ export const Legend: React.FC = () => {
         </div>
         <div className="flex items-center gap-1" title="Strategic High-Ground Relief Sanctuary">
           <span>⛺</span>
-          <span className="text-emerald-300 font-semibold">Rescue Camps (Relief Hub)</span>
+          <span className="text-emerald-300 font-semibold">{t('rescueCamps', 'Relief Camps')}</span>
         </div>
         <div className="flex items-center gap-1" title="Assam Secretariat & GMCH Apex Hospital">
           <span>🏛️</span>
