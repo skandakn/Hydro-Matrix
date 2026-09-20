@@ -46,19 +46,14 @@ export default function CrisisCommandPage() {
   const { startSession, recordTelemetryTick, flushSession, saveBenchmarks } =
     useSessionPersistence();
 
-  // ── Auto-launch onboarding tour on first visit ───────────────────────────
+  // ── Auto-launch onboarding tour as soon as website opens ───────────────────
   useEffect(() => {
     try {
-      const hasSeenTour = localStorage.getItem('flowshield_has_seen_tour');
-      if (!hasSeenTour) {
-        const timer = setTimeout(() => {
-          startTour();
-        }, 600);
-        return () => clearTimeout(timer);
-      }
+      localStorage.removeItem('flowshield_has_seen_tour');
     } catch {
       // LocalStorage access may fail in restricted contexts
     }
+    startTour();
   }, [startTour]);
 
   const prevCritCountRef = useRef<number>(criticalZoneCount);

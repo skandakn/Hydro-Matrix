@@ -220,12 +220,26 @@ export const OnboardingTour: React.FC = () => {
 
     // Measure immediately, then after drawer animation and layout settle
     scrollAndMeasure();
-    const timer1 = setTimeout(scrollAndMeasure, 120);
-    const timer2 = setTimeout(scrollAndMeasure, 300);
+    const timer1 = setTimeout(scrollAndMeasure, 50);
+    const timer2 = setTimeout(scrollAndMeasure, 150);
+    const timer3 = setTimeout(scrollAndMeasure, 350);
+    const timer4 = setTimeout(scrollAndMeasure, 700);
+
+    // Continuous poll for the first 2 seconds until element is found
+    const pollInterval = setInterval(() => {
+      const el = document.querySelector(step.targetSelector);
+      if (el) {
+        setTargetRect(el.getBoundingClientRect());
+        clearInterval(pollInterval);
+      }
+    }, 100);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
+      clearInterval(pollInterval);
     };
   }, [
     isTourOpen,
@@ -365,7 +379,7 @@ export const OnboardingTour: React.FC = () => {
   const clampedTop = Math.max(16, Math.min(viewport.height - popoverHeight - 16, popoverTop));
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-auto">
+    <div className="fixed inset-0 z-[100] pointer-events-auto">
       {/* ── 1. Semi-Transparent Dimming Backdrop with SVG Mask Cutout ──────── */}
       <svg
         className="fixed inset-0 h-full w-full pointer-events-none transition-opacity duration-300"

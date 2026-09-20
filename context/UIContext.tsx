@@ -86,7 +86,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
 
   // Guided Onboarding Tour State
-  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(true);
   const [tourStep, setTourStep] = useState(0);
 
   const [mapSettings, setMapSettings] = useState<MapViewSettings>({
@@ -201,11 +201,6 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
 
   const closeTour = useCallback(() => {
     setIsTourOpen(false);
-    try {
-      localStorage.setItem('flowshield_has_seen_tour', 'true');
-    } catch {
-      // ignore
-    }
   }, []);
 
   const nextTourStep = useCallback(() => {
