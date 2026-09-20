@@ -182,7 +182,7 @@ export const RightDrawer: React.FC = () => {
     PRESET_SCENARIOS.find((p) => p.id === activeScenarioId) || PRESET_SCENARIOS[0];
 
   return (
-    <aside className="relative z-30 flex flex-col w-full sm:w-88 md:w-96 max-w-full h-full max-h-screen border-l border-slate-800/80 bg-slate-950/95 shadow-2xl backdrop-blur-xl overflow-y-auto overflow-x-hidden">
+    <aside className="relative z-30 flex flex-col w-full sm:w-[22rem] md:w-[24rem] max-w-full h-full max-h-screen border-l border-slate-800/80 bg-slate-950/95 shadow-2xl backdrop-blur-xl overflow-y-auto overflow-x-hidden">
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-800 bg-slate-950/90 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
