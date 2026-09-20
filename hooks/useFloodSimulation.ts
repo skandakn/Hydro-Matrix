@@ -28,6 +28,7 @@ import {
   DisasterType,
   TelemetryPoint,
   ScenarioComparisonRecord,
+  EvacuationUrgencyLevel,
   AutomaticWeatherStation,
   GMDAPumpStation,
   RescueCamp,
@@ -48,7 +49,7 @@ import {
   PUMP_MAX_EXTRACTION_COEFFICIENT,
 } from '@/lib/simulation-engine/physics';
 export { PUMP_MAX_EXTRACTION_COEFFICIENT };
-import { PRESET_SCENARIOS } from '@/lib/simulation-engine/scenarios';
+import { PRESET_SCENARIOS, BENCHMARK_SCENARIOS } from '@/lib/simulation-engine/scenarios';
 import {
   DEFAULT_LANDMARK_CAMPS,
   getRecommendedCampSites,
@@ -861,7 +862,16 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
     },
 
     generateComparisonBenchmarks: () => {
-      const records: ScenarioComparisonRecord[] = PRESET_SCENARIOS.map(preset => {
+      // Benchmark scenarios to compare (4 canonical conditions specified by hydrological DPR)
+      const benchmarkIds = [
+        'guwahati-monsoon',
+        'meghalaya-cloudburst',
+        'gmda-pumps-failure',
+        'brahmaputra-backflow',
+      ];
+      const targetScenarios = PRESET_SCENARIOS.filter(p => benchmarkIds.includes(p.id));
+
+      const records: ScenarioComparisonRecord[] = targetScenarios.map(preset => {
         let simGrid = generateCityGrid();
         if (preset.blockedDrainCoordinates) {
           for (const coord of preset.blockedDrainCoordinates) {
@@ -879,58 +889,110 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
           sluiceGateOpen: preset.sluiceGateOpen !== undefined ? preset.sluiceGateOpen : true,
         };
 
-        const activePumps = preset.pumpsOffline
-          ? new Set<string>()
-          : new Set(GMDA_PUMP_STATIONS.map(p => p.id));
+        const benchmarkMeta = BENCHMARK_SCENARIOS.find(b => b.id === preset.id);
+        const activePumpCount = benchmarkMeta ? benchmarkMeta.activePumpsCount : (preset.pumpsOffline ? 4 : 20);
+
+        const activePumps = new Set<string>();
+        for (let i = 0; i < activePumpCount; i++) {
+          if (GMDA_PUMP_STATIONS[i]) {
+            activePumps.add(GMDA_PUMP_STATIONS[i].id);
+          }
+        }
 
         const dataPoints: TelemetryPoint[] = [];
         let peakArea = 0;
         let peakPop = 0;
         let peakDepth = 0;
+        let peakCriticalZones = 0;
         let timeToFirstCrit: number | null = null;
         let compromisedInfra = 0;
 
-        for (let t = 0; t <= 20; t++) {
+        // Simulate a 24-hour horizon (+0h to +24h) at 2-hour reporting intervals (13 milestones)
+        const TOTAL_HOURS = 24;
+        const STEP_INTERVAL_HOURS = 2;
+
+        // Baseline point at +0h (initial condition before rain progression)
+        const baselineRes = runSimulationStepPhysics(simGrid, 0, activePumps, simConfig);
+        peakArea = baselineRes.floodedAreaSqKm;
+        peakPop = baselineRes.affectedResidents;
+        peakDepth = baselineRes.maxWaterDepth;
+        peakCriticalZones = baselineRes.criticalZoneCount;
+
+        dataPoints.push({
+          timeLabel: '+0h',
+          elapsedMinutes: 0,
+          floodedAreaSqKm: parseFloat(baselineRes.floodedAreaSqKm.toFixed(2)),
+          affectedPopulation: baselineRes.affectedResidents,
+          criticalZones: baselineRes.criticalZoneCount,
+          warningZones: baselineRes.warningZoneCount,
+          maxWaterDepth: parseFloat(baselineRes.maxWaterDepth.toFixed(2)),
+          avgDrainageEfficiency: Math.round(preset.drainageSystemEfficiency * 100),
+          bahiniBharaluFlowM3S: baselineRes.bahiniBharaluFlowM3S,
+          activePumpsCount: activePumpCount,
+        });
+
+        for (let h = STEP_INTERVAL_HOURS; h <= TOTAL_HOURS; h += STEP_INTERVAL_HOURS) {
           const stepRes = runSimulationStepPhysics(simGrid, preset.rainfallIntensity, activePumps, simConfig);
           simGrid = stepRes.nextGrid;
 
           if (stepRes.floodedAreaSqKm > peakArea) peakArea = stepRes.floodedAreaSqKm;
           if (stepRes.affectedResidents > peakPop) peakPop = stepRes.affectedResidents;
           if (stepRes.maxWaterDepth > peakDepth) peakDepth = stepRes.maxWaterDepth;
+          if (stepRes.criticalZoneCount > peakCriticalZones) peakCriticalZones = stepRes.criticalZoneCount;
 
           if (stepRes.criticalZoneCount > 0 && timeToFirstCrit === null) {
-            timeToFirstCrit = t * 10;
+            timeToFirstCrit = h * 60;
           }
 
-          const mins = t * 10;
-          const h = Math.floor(mins / 60);
-          const m = mins % 60;
           dataPoints.push({
-            timeLabel: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
-            elapsedMinutes: mins,
-            floodedAreaSqKm: stepRes.floodedAreaSqKm,
+            timeLabel: `+${h}h`,
+            elapsedMinutes: h * 60,
+            floodedAreaSqKm: parseFloat(stepRes.floodedAreaSqKm.toFixed(2)),
             affectedPopulation: stepRes.affectedResidents,
             criticalZones: stepRes.criticalZoneCount,
             warningZones: stepRes.warningZoneCount,
-            maxWaterDepth: stepRes.maxWaterDepth,
+            maxWaterDepth: parseFloat(stepRes.maxWaterDepth.toFixed(2)),
             avgDrainageEfficiency: Math.round(preset.drainageSystemEfficiency * 100),
             bahiniBharaluFlowM3S: stepRes.bahiniBharaluFlowM3S,
-            activePumpsCount: stepRes.activePumpsCount,
+            activePumpsCount: activePumpCount,
           });
         }
 
         for (const node of simGrid) {
-          if (node.infrastructure && node.status === 'CRITICAL') {
+          if (node.infrastructure && (node.status === 'CRITICAL' || node.waterDepth >= 0.75)) {
             compromisedInfra++;
           }
+        }
+
+        const criticalSectorsCount = Math.max(
+          peakCriticalZones,
+          simGrid.filter(n => n.waterDepth >= 0.75).length
+        );
+
+        let evacuationUrgency: EvacuationUrgencyLevel = 'Low';
+        if (criticalSectorsCount >= 8 || peakArea >= 5.5 || (!preset.sluiceGateOpen && preset.rainfallIntensity >= 40)) {
+          evacuationUrgency = 'Immediate';
+        } else if (criticalSectorsCount >= 3 || peakArea >= 3.0 || preset.pumpsOffline) {
+          evacuationUrgency = 'Severe';
+        } else if (criticalSectorsCount >= 1 || peakArea >= 1.0 || preset.rainfallIntensity > 22) {
+          evacuationUrgency = 'Moderate';
+        } else {
+          evacuationUrgency = 'Low';
         }
 
         return {
           scenarioId: preset.id,
           scenarioName: preset.name,
-          peakFloodedAreaSqKm: peakArea,
+          shortName: benchmarkMeta?.shortName || preset.name,
+          badge: benchmarkMeta?.badge || preset.badge,
+          description: preset.description,
+          rainfallIntensity: preset.rainfallIntensity,
+          drainageCapacityPercent: Math.round(preset.drainageSystemEfficiency * 100),
+          peakFloodedAreaSqKm: parseFloat(peakArea.toFixed(2)),
+          criticalSectorsCount,
           peakAffectedPopulation: peakPop,
-          peakWaterDepth: peakDepth,
+          evacuationUrgency,
+          peakWaterDepth: parseFloat(peakDepth.toFixed(2)),
           timeToFirstCriticalMin: timeToFirstCrit,
           infrastructureCompromisedCount: compromisedInfra,
           dataPoints,

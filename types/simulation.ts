@@ -262,15 +262,37 @@ export interface TelemetryPoint {
   activePumpsCount?: number;
 }
 
+export type EvacuationUrgencyLevel = 'Low' | 'Moderate' | 'Severe' | 'Immediate';
+
 export interface ScenarioComparisonRecord {
   scenarioId: string;
   scenarioName: string;
+  shortName?: string;
+  badge?: string;
+  description?: string;
+  rainfallIntensity?: number;
+  drainageCapacityPercent?: number;
   peakFloodedAreaSqKm: number;
+  criticalSectorsCount: number; // zones with depth > 0.75m
   peakAffectedPopulation: number;
+  evacuationUrgency: EvacuationUrgencyLevel;
   peakWaterDepth: number;
   timeToFirstCriticalMin: number | null;
   infrastructureCompromisedCount: number;
   dataPoints: TelemetryPoint[];
+}
+
+/**
+ * Designated Municipal Relief Camp structure with statistical capacity tracking
+ */
+export interface ReliefCamp {
+  id: string;
+  name: string;
+  capacity: number;          // Total holding capacity (e.g. 5,000)
+  currentOccupancy: number;  // Displaced people currently sheltered
+  status: 'AVAILABLE' | 'NEAR_CAPACITY' | 'FULL';
+  elevation: number;         // Height above MSL (e.g. 55.0m)
+  connectedSectors: string[]; // Sectors routed here (e.g., ['Anil Nagar', 'Nabin Nagar'])
 }
 
 export interface MapViewSettings {
