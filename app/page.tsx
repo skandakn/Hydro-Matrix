@@ -16,7 +16,7 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFloodSimulation } from '@/hooks/useFloodSimulation';
 import { useUIContext } from '@/context/UIContext';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
@@ -30,6 +30,7 @@ import { SitRepModal } from '@/components/dashboard/SitRepModal';
 import { GMDAInfoModal } from '@/components/dashboard/GMDAInfoModal';
 import { EmergencyVoiceHelplineModal } from '@/components/dashboard/EmergencyVoiceHelplineModal';
 import { RescueCampModal } from '@/components/dashboard/RescueCampModal';
+import { OnboardingTour } from '@/components/dashboard/OnboardingTour';
 import { MessageCircle, X } from 'lucide-react';
 
 export default function CrisisCommandPage() {
@@ -41,9 +42,24 @@ export default function CrisisCommandPage() {
     generateComparisonBenchmarks,
   } = useFloodSimulation();
 
-  const { playTacticalAlertSound, setActiveModal, activeModal } = useUIContext();
+  const { playTacticalAlertSound, setActiveModal, activeModal, startTour } = useUIContext();
   const { startSession, recordTelemetryTick, flushSession, saveBenchmarks } =
     useSessionPersistence();
+
+  // ── Auto-launch onboarding tour on first visit ───────────────────────────
+  useEffect(() => {
+    try {
+      const hasSeenTour = localStorage.getItem('flowshield_has_seen_tour');
+      if (!hasSeenTour) {
+        const timer = setTimeout(() => {
+          startTour();
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // LocalStorage access may fail in restricted contexts
+    }
+  }, [startTour]);
 
   const prevCritCountRef = useRef<number>(criticalZoneCount);
   const isPlayingRef = useRef(isPlaying);
@@ -108,7 +124,11 @@ export default function CrisisCommandPage() {
         <LeftDrawer />
 
         {/* Central Viewport: 2.5D Volumetric Grid Canvas */}
-        <div className="relative flex flex-1 h-full w-full overflow-hidden bg-slate-950">
+        <div
+          data-tour="map-canvas"
+          id="tour-map-canvas"
+          className="relative flex flex-1 h-full w-full overflow-hidden bg-slate-950"
+        >
           <FloodMap2D5 />
         </div>
 
@@ -123,15 +143,16 @@ export default function CrisisCommandPage() {
       <SitRepModal />
       <EmergencyVoiceHelplineModal />
       <RescueCampModal />
+      <OnboardingTour />
 
       {/* 4. Matrix Assistant — Floating Chatbot FAB (bottom-right) */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-        {/* Tooltip label — visible on hover */}
+        {/* FAB button — hidden when modal is already open */}
         <div
           className={`transition-all duration-200 ${
             activeModal === 'emergency_helpline'
-              ? 'opacity-0 pointer-events-none'
-              : 'opacity-100'
+              ? 'opacity-0 pointer-events-none scale-90'
+              : 'opacity-100 scale-100'
           }`}
         >
           <button
@@ -142,17 +163,17 @@ export default function CrisisCommandPage() {
             className="group flex items-center gap-2.5 rounded-2xl border border-rose-500/60 bg-slate-950/95 backdrop-blur-xl px-4 py-3 shadow-2xl shadow-rose-950/60 hover:border-rose-400 hover:bg-rose-950/30 transition-all duration-200 hover:scale-105 active:scale-95"
             title="Open Matrix Assistant"
           >
-            {/* Pulsing indicator dot */}
+            {/* Pulsing live indicator */}
             <span className="relative flex h-2.5 w-2.5 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
             </span>
 
-            {/* Icon */}
+            {/* Chat icon */}
             <MessageCircle className="h-5 w-5 text-rose-400 group-hover:text-rose-300 transition-colors shrink-0" />
 
             {/* Label */}
-            <div className="flex flex-col items-start leading-none">
+            <div className="flex flex-col items-start leading-none gap-0.5">
               <span className="text-[11px] font-black tracking-widest text-white uppercase">
                 Matrix
               </span>
@@ -163,7 +184,7 @@ export default function CrisisCommandPage() {
           </button>
         </div>
 
-        {/* Close / minimise button — only visible when modal is open */}
+        {/* Close button — only when modal is open */}
         {activeModal === 'emergency_helpline' && (
           <button
             onClick={() => setActiveModal('none')}

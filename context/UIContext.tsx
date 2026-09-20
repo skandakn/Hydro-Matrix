@@ -42,6 +42,16 @@ interface UIContextType {
   // Fullscreen map mode
   isFullscreenMap: boolean;
   toggleFullscreenMap: () => void;
+
+  // Onboarding Guided Tour
+  isTourOpen: boolean;
+  setIsTourOpen: (open: boolean) => void;
+  tourStep: number;
+  setTourStep: (step: number) => void;
+  startTour: () => void;
+  closeTour: () => void;
+  nextTourStep: () => void;
+  prevTourStep: () => void;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -53,6 +63,10 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [audioAlertsEnabled, setAudioAlertsEnabled] = useState(true);
   const [activeModal, setActiveModal] = useState<'none' | 'comparison' | 'evacuation' | 'export_report' | 'gmda_info' | 'emergency_helpline' | 'rescue_camps'>('none');
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
+
+  // Guided Onboarding Tour State
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   const [mapSettings, setMapSettings] = useState<MapViewSettings>({
     projection: '2.5D',
@@ -156,6 +170,37 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     return getTranslation(language, key, fallback);
   }, [language]);
 
+  const startTour = useCallback(() => {
+    setActiveModal('none');
+    setIsLeftDrawerOpen(true);
+    setIsRightDrawerOpen(true);
+    setTourStep(0);
+    setIsTourOpen(true);
+  }, []);
+
+  const closeTour = useCallback(() => {
+    setIsTourOpen(false);
+    try {
+      localStorage.setItem('flowshield_has_seen_tour', 'true');
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const nextTourStep = useCallback(() => {
+    setTourStep((prev) => {
+      if (prev >= 5) {
+        closeTour();
+        return prev;
+      }
+      return prev + 1;
+    });
+  }, [closeTour]);
+
+  const prevTourStep = useCallback(() => {
+    setTourStep((prev) => Math.max(0, prev - 1));
+  }, []);
+
   return (
     <UIContext.Provider
       value={{
@@ -179,6 +224,14 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         setActiveModal,
         isFullscreenMap,
         toggleFullscreenMap,
+        isTourOpen,
+        setIsTourOpen,
+        tourStep,
+        setTourStep,
+        startTour,
+        closeTour,
+        nextTourStep,
+        prevTourStep,
       }}
     >
       {children}

@@ -71,10 +71,19 @@ export const RightDrawer: React.FC = () => {
     setIsRightDrawerOpen,
     setActiveModal,
     playTacticalAlertSound,
+    isTourOpen,
+    tourStep,
   } = useUIContext();
 
   const [activeTab, setActiveTab] = useState<'kpi' | 'aws' | 'watchlist'>('kpi');
   const [awsSearch, setAwsSearch] = useState('');
+
+  // Auto-switch to KPI tab when Tour reaches Step 6 (telemetry stats)
+  React.useEffect(() => {
+    if (isTourOpen && tourStep === 5) {
+      setActiveTab('kpi');
+    }
+  }, [isTourOpen, tourStep]);
 
   if (!isRightDrawerOpen) {
     return (
@@ -164,7 +173,11 @@ export const RightDrawer: React.FC = () => {
 
         {/* --- TAB 1: TELEMETRY & KPIS --- */}
         {activeTab === 'kpi' && (
-          <div className="space-y-4 animate-in fade-in duration-150">
+          <div
+            data-tour="telemetry-stats"
+            id="tour-telemetry-stats"
+            className="space-y-4 animate-in fade-in duration-150"
+          >
             {/* Live KPIs */}
             <div className="grid grid-cols-2 gap-2.5">
               <div className="rounded-xl border border-cyan-500/30 bg-slate-900/60 p-3 shadow-inner">
