@@ -71,7 +71,7 @@ export const LeftDrawer: React.FC = () => {
     removeDisaster,
   } = useFloodSimulation();
 
-  const { isLeftDrawerOpen, setIsLeftDrawerOpen, playTacticalAlertSound, setActiveModal } = useUIContext();
+  const { isLeftDrawerOpen, setIsLeftDrawerOpen, playTacticalAlertSound, setActiveModal, t } = useUIContext();
 
   const [pumpsExpanded, setPumpsExpanded] = useState(false);
 
@@ -80,10 +80,10 @@ export const LeftDrawer: React.FC = () => {
       <button
         onClick={() => setIsLeftDrawerOpen(true)}
         className="absolute top-16 left-0 z-30 flex items-center gap-2 rounded-r-lg border border-l-0 border-cyan-500/40 bg-slate-950/90 px-3 py-2 text-xs font-semibold text-cyan-300 shadow-xl backdrop-blur-md transition-transform hover:translate-x-1"
-        title="Open Scenario & Control Panel"
+        title={t('controlsAndPumps', 'CONTROLS & PUMPS')}
       >
         <Sliders className="h-4 w-4 text-cyan-400" />
-        <span>CONTROLS & PUMPS</span>
+        <span>{t('controlsAndPumps', 'CONTROLS & PUMPS')}</span>
       </button>
     );
   }
@@ -141,7 +141,7 @@ export const LeftDrawer: React.FC = () => {
         <div className="flex items-center gap-2">
           <Sliders className="h-4 w-4 text-cyan-400" />
           <h2 className="text-sm font-bold tracking-wide uppercase text-slate-100">
-            Guwahati Basin Controls
+            {t('basinControls', 'Guwahati Basin Controls')}
           </h2>
         </div>
         <Button
@@ -149,7 +149,7 @@ export const LeftDrawer: React.FC = () => {
           variant="ghost"
           className="h-7 w-7 text-slate-400 hover:text-white"
           onClick={() => setIsLeftDrawerOpen(false)}
-          title="Collapse Panel"
+          title={t('collapsePanel', 'Collapse Panel')}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -165,7 +165,7 @@ export const LeftDrawer: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-300">
               <Clock className="h-3.5 w-3.5 text-cyan-400" />
-              <span>SIMULATION TIMELINE</span>
+              <span>{t('timeline', 'SIMULATION TIMELINE')}</span>
             </div>
             <span className="font-mono text-xs font-bold text-cyan-200 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/60">
               T+{String(elapsedHours).padStart(2, '0')}h
@@ -175,13 +175,13 @@ export const LeftDrawer: React.FC = () => {
           {/* Prominent Elapsed Time Display */}
           <div className="rounded-lg bg-slate-950/90 border border-slate-800 p-3 text-center shadow-md">
             <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400 mb-0.5">
-              Forecast Timeline Interval
+              {t('forecastTimelineInterval', 'Forecast Timeline Interval')}
             </div>
             <div className="text-xl font-black font-mono text-white tracking-wide">
-              Elapsed Time: +{elapsedHours} Hours
+              {t('elapsedTime', 'Elapsed Time')}: +{elapsedHours} Hours
             </div>
             <div className="text-[11px] text-cyan-400/90 mt-0.5 font-medium">
-              Step-based 6-hour hydrological forecast
+              {t('stepBasedForecast', 'Step-based 6-hour hydrological forecast')}
             </div>
           </div>
 
@@ -233,12 +233,12 @@ export const LeftDrawer: React.FC = () => {
               {isPlaying ? (
                 <>
                   <Pause className="h-3 w-3 fill-current" />
-                  <span>Pause Automated Stepping</span>
+                  <span>{t('pauseAutomated', 'Pause Automated Stepping')}</span>
                 </>
               ) : (
                 <>
                   <Play className="h-3 w-3 fill-current" />
-                  <span>Auto-Step Simulation (6h cycle)</span>
+                  <span>{t('autoStepSim', 'Auto-Step Simulation (6h cycle)')}</span>
                 </>
               )}
             </Button>
@@ -250,7 +250,7 @@ export const LeftDrawer: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
               <Tent className="h-4 w-4 text-emerald-400" />
-              <span>Rescue Camps & Logistics</span>
+              <span>{t('activeCamps', 'Rescue Camps & Logistics')}</span>
             </div>
             <Badge variant="safe" className="text-[10px] font-mono">
               {rescueCamps.length} ACTIVE
@@ -259,11 +259,11 @@ export const LeftDrawer: React.FC = () => {
 
           <div className="rounded-lg bg-slate-950/80 border border-slate-800 p-2.5 grid grid-cols-2 gap-2 text-[11px]">
             <div>
-              <span className="text-slate-400 block text-[10px]">Sheltered Citizens:</span>
+              <span className="text-slate-400 block text-[10px]">{t('shelteredCitizens', 'Sheltered Citizens')}:</span>
               <strong className="text-emerald-300 font-mono text-sm">{totalShelteredEvacuees.toLocaleString()}</strong>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px]">Total Bed Capacity:</span>
+              <span className="text-slate-400 block text-[10px]">{t('totalCapacity', 'Total Bed Capacity')}:</span>
               <strong className="text-white font-mono text-sm">{totalRescueCapacity.toLocaleString()}</strong>
             </div>
           </div>
@@ -279,7 +279,7 @@ export const LeftDrawer: React.FC = () => {
               className="flex-1 h-7 text-[11px] font-bold gap-1"
             >
               <Tent className="h-3 w-3" />
-              Open Rescue Command
+              {t('openRescueCommand', 'Open Rescue Command')}
             </Button>
             <Button
               size="xs"
@@ -292,7 +292,7 @@ export const LeftDrawer: React.FC = () => {
               title="Automatically deploy top algorithmically recommended camps"
             >
               <Sparkles className="h-3 w-3 mr-1 text-amber-400" />
-              Auto-Deploy
+              {t('autoDeploy', 'Auto-Deploy')}
             </Button>
           </div>
         </div>
@@ -306,7 +306,7 @@ export const LeftDrawer: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
               <CloudRain className="h-4 w-4 text-cyan-400" />
-              <span>Rainfall Intensity (Catchment Area)</span>
+              <span>{t('rainfallIntensity', 'Rainfall Intensity (Catchment Area)')}</span>
             </div>
             <span className="font-mono text-xs font-bold text-cyan-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
               {rainfall} mm/h
@@ -315,7 +315,7 @@ export const LeftDrawer: React.FC = () => {
 
           {/* Subtitle / Plain Language Description */}
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            How heavy the rain is falling over the city and surrounding hills. Higher rain fills drains faster and causes water to pool in low-lying neighborhoods.
+            {t('rainDesc', 'How heavy the rain is falling over the city and surrounding hills. Higher rain fills drains faster and causes water to pool in low-lying neighborhoods.')}
           </p>
 
           <Slider
@@ -338,9 +338,9 @@ export const LeftDrawer: React.FC = () => {
 
           {/* Hill Rainfall Indicator */}
           <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
-            <span>Hill Rainfall:</span>
+            <span>{t('hillRainfall', 'Hill Rainfall')}:</span>
             <span className={`font-mono font-medium ${rainfall > 60 ? 'text-amber-400 font-semibold' : 'text-slate-400'}`}>
-              {rainfall > 60 ? '+25% runoff from Khasi Hills' : 'Normal hill runoff'}
+              {rainfall > 60 ? t('khasiHillsRunoff', '+25% runoff from Khasi Hills') : t('normalHillRunoff', 'Normal hill runoff')}
             </span>
           </div>
         </div>
@@ -354,7 +354,7 @@ export const LeftDrawer: React.FC = () => {
           <div className="flex items-center justify-between border-b border-blue-500/20 pb-2">
             <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 uppercase tracking-wider">
               <ShieldAlert className="h-4 w-4 text-cyan-400" />
-              <span>City Defenses & Drainage Controls</span>
+              <span>{t('controlsAndPumps', 'City Defenses & Drainage Controls')}</span>
             </div>
             <Badge variant="cyan" className="text-[9px] font-mono">
               PUMPS & SLUICE
@@ -366,10 +366,10 @@ export const LeftDrawer: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300 uppercase tracking-wider">
                 <Cpu className="h-4 w-4 text-blue-400" />
-                <span>20 GMDA Auto-Priming Pumps</span>
+                <span>{t('pumpsFleet', '20 GMDA Auto-Priming Pumps')}</span>
               </div>
               <Badge variant={activePumps === 20 ? 'safe' : activePumps > 0 ? 'warning' : 'critical'} className="text-[10px] font-mono">
-                {activePumps}/20 RUNNING
+                {activePumps}/20 {activePumps > 0 ? t('pumpsRunning', 'RUNNING') : t('pumpsOffline', 'OFFLINE')}
               </Badge>
             </div>
 
@@ -386,7 +386,7 @@ export const LeftDrawer: React.FC = () => {
                 className="text-[11px] h-7"
               >
                 <Power className="h-3 w-3 mr-1" />
-                {allPumpsActive ? 'Turn Off All' : 'Turn On All 20 Pumps'}
+                {allPumpsActive ? t('turnOffAll', 'Turn Off All') : t('turnOnAllPumps', 'Turn On All 20 Pumps')}
               </Button>
 
               <Button
@@ -400,7 +400,7 @@ export const LeftDrawer: React.FC = () => {
                 title="Simulate electrical power failure across all GMDA dewatering pumps"
               >
                 <AlertOctagon className="h-3 w-3 mr-1 text-rose-400" />
-                Simulate Power Outage
+                {t('powerOutage', 'Simulate Power Outage')}
               </Button>
             </div>
 
@@ -410,7 +410,7 @@ export const LeftDrawer: React.FC = () => {
                 onClick={() => setPumpsExpanded(!pumpsExpanded)}
                 className="w-full text-[11px] text-cyan-300 hover:text-cyan-200 flex items-center justify-between py-1 border-t border-blue-900/40"
               >
-                <span>{pumpsExpanded ? 'Hide individual stations' : 'Configure individual 20 pump stations'}</span>
+                <span>{pumpsExpanded ? t('hideIndividual', 'Hide individual stations') : t('configureStations', 'Configure individual 20 pump stations')}</span>
                 <span className="font-mono text-[10px]">{pumpsExpanded ? '▲' : '▼'}</span>
               </button>
 
@@ -452,7 +452,7 @@ export const LeftDrawer: React.FC = () => {
             <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
               <span className="flex items-center gap-1.5 text-cyan-300 font-bold">
                 <Waves className="h-4 w-4 text-cyan-400" />
-                Main River Flood Gate (Bharalumukh Sluice)
+                {t('riverBarrier', 'Main River Flood Gate (Bharalumukh Sluice)')}
               </span>
             </div>
 
@@ -471,13 +471,13 @@ export const LeftDrawer: React.FC = () => {
                 <li className="flex items-start gap-1.5">
                   <span className="text-emerald-400 font-bold">•</span>
                   <span>
-                    <strong className="text-emerald-300">Gate OPEN:</strong> Rainwater drains naturally into the river by gravity (only works when the river is lower than city drains).
+                    <strong className="text-emerald-300">Gate OPEN:</strong> {t('gateOpenDesc', 'Rainwater drains naturally into the river by gravity (only works when the river is lower than city drains).')}
                   </span>
                 </li>
                 <li className="flex items-start gap-1.5">
                   <span className="text-amber-400 font-bold">•</span>
                   <span>
-                    <strong className="text-amber-300">Gate CLOSED:</strong> Blocks river backflow, but city rainwater cannot exit naturally and relies on emergency pumps.
+                    <strong className="text-amber-300">Gate CLOSED:</strong> {t('gateClosedDesc', 'Blocks river backflow, but city rainwater cannot exit naturally and relies on emergency pumps.')}
                   </span>
                 </li>
               </ul>

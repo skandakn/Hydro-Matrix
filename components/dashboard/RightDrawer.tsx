@@ -44,6 +44,11 @@ import {
   Droplets,
   Wind,
   Battery,
+  Waves,
+  Users,
+  Cpu,
+  BarChart3,
+  TrendingUp,
 } from 'lucide-react';
 import { formatPopulation } from '@/lib/utils';
 
@@ -129,6 +134,7 @@ export const RightDrawer: React.FC = () => {
     playTacticalAlertSound,
     isTourOpen,
     tourStep,
+    t,
   } = useUIContext();
 
   const [activeTab, setActiveTab] = useState<'kpi' | 'aws' | 'watchlist'>('kpi');
@@ -146,10 +152,10 @@ export const RightDrawer: React.FC = () => {
       <button
         onClick={() => setIsRightDrawerOpen(true)}
         className="absolute top-16 right-0 z-30 flex items-center gap-2 rounded-l-lg border border-r-0 border-cyan-500/40 bg-slate-950/90 px-3 py-2 text-xs font-semibold text-cyan-300 shadow-xl backdrop-blur-md transition-transform hover:-translate-x-1"
-        title="Open Telemetry & Analytics"
+        title={t('telemetryAndFeed', 'TELEMETRY & 18 AWS FEED')}
       >
         <Activity className="h-4 w-4 text-cyan-400" />
-        <span>TELEMETRY & 18 AWS FEED</span>
+        <span>{t('telemetryAndFeed', 'TELEMETRY & 18 AWS FEED')}</span>
       </button>
     );
   }
@@ -192,7 +198,7 @@ export const RightDrawer: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold tracking-wide uppercase text-slate-100">
-                Guwahati Telemetry
+                {t('guwahatiTelemetry', 'Guwahati Telemetry')}
               </h2>
               <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-[9px] font-mono text-cyan-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
@@ -209,7 +215,7 @@ export const RightDrawer: React.FC = () => {
           variant="ghost"
           className="h-7 w-7 text-slate-400 hover:text-white"
           onClick={() => setIsRightDrawerOpen(false)}
-          title="Collapse Panel"
+          title={t('collapsePanel', 'Collapse Panel')}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -226,7 +232,7 @@ export const RightDrawer: React.FC = () => {
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <span>Telemetry</span>
+            <span>{t('telemetryTab', 'Telemetry')}</span>
           </button>
           <button
             onClick={() => setActiveTab('aws')}
@@ -237,7 +243,7 @@ export const RightDrawer: React.FC = () => {
             }`}
           >
             <Radio className="h-3 w-3" />
-            <span>AWS Feed</span>
+            <span>{t('awsFeedTab', '18 AWS Feed')}</span>
             <span className="text-[9px] font-mono opacity-75">({weatherStations.length})</span>
           </button>
           <button
@@ -248,7 +254,7 @@ export const RightDrawer: React.FC = () => {
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <span>Watchlist</span>
+            <span>{t('watchlistTab', 'Watchlist')}</span>
             {criticalAndApproaching.length > 0 && (
               <span
                 className={`px-1 py-0.2 rounded text-[9px] font-mono ${
@@ -274,8 +280,9 @@ export const RightDrawer: React.FC = () => {
             >
               {/* Metric 1: Flooded Basin Area (Cyan) */}
               <div className="rounded-xl border border-cyan-500/30 bg-slate-900/60 p-3 shadow-inner">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Flooded Basin Area
+                <div className="flex items-center justify-between text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+                  <span>{t('floodedBasinArea', 'Flooded Basin Area')}</span>
+                  <Waves className="h-3.5 w-3.5 text-cyan-400" />
                 </div>
                 <div className="mt-1 flex items-baseline gap-1">
                   <span className="font-mono text-2xl font-bold text-cyan-400">
@@ -290,8 +297,9 @@ export const RightDrawer: React.FC = () => {
 
               {/* Metric 2: Affected Residents (Amber) */}
               <div className="rounded-xl border border-amber-500/30 bg-slate-900/60 p-3 shadow-inner">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Affected Residents
+                <div className="flex items-center justify-between text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+                  <span>{t('affectedResidentsLabel', 'Affected Residents')}</span>
+                  <Users className="h-3.5 w-3.5 text-amber-400" />
                 </div>
                 <div className="mt-1 flex items-baseline gap-1">
                   <span className="font-mono text-2xl font-bold text-amber-400">
@@ -306,8 +314,9 @@ export const RightDrawer: React.FC = () => {
 
               {/* Metric 3: Critical Sectors (Red) */}
               <div className="rounded-xl border border-rose-500/30 bg-slate-900/60 p-3 shadow-inner">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  Critical Sectors
+                <div className="flex items-center justify-between text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+                  <span>{t('criticalSectors', 'Critical Sectors')}</span>
+                  <AlertOctagon className="h-3.5 w-3.5 text-rose-400 animate-pulse" />
                 </div>
                 <div className="mt-1 flex items-baseline gap-1">
                   <span className="font-mono text-2xl font-bold text-rose-400">
@@ -322,8 +331,9 @@ export const RightDrawer: React.FC = () => {
 
               {/* Metric 4: GMDA Pumps Armed (Blue) */}
               <div className="rounded-xl border border-blue-500/30 bg-slate-900/60 p-3 shadow-inner">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  GMDA Pumps Armed
+                <div className="flex items-center justify-between text-slate-400 text-[10px] uppercase tracking-wider font-semibold">
+                  <span>{t('gmdaPumpsArmed', 'GMDA Pumps Armed')}</span>
+                  <Cpu className="h-3.5 w-3.5 text-blue-400" />
                 </div>
                 <div className="mt-1 flex items-baseline gap-1">
                   <span className="font-mono text-2xl font-bold text-blue-400">
@@ -337,11 +347,30 @@ export const RightDrawer: React.FC = () => {
               </div>
             </div>
 
-            {/* 2. WHAT COULD HAPPEN? (SCENARIO COMPARISON) */}
-            <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-3 space-y-2">
+            {/* Scenario Comparison Launcher */}
+            <Button
+              variant="cyan"
+              size="sm"
+              onClick={() => {
+                generateComparisonBenchmarks();
+                setActiveModal('comparison');
+                playTacticalAlertSound('action');
+              }}
+              className="w-full justify-between py-2.5 font-semibold text-xs border border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-900/60 shadow-lg shadow-cyan-500/10"
+            >
+              <span className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-cyan-400" />
+                <span>{t('scenarioComparisonMatrix', 'SCENARIO COMPARISON MATRIX')}</span>
+              </span>
+              <ExternalLink className="h-3.5 w-3.5 text-cyan-400" />
+            </Button>
+
+            {/* Recharts: Inundation Curve */}
+            <div className="space-y-2 rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5">
               <div className="flex items-center justify-between">
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                  Scenario Comparison
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+                  <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>{t('basinInundationProgression', 'Basin Inundation Progression')}</span>
                 </div>
                 <button
                   onClick={() => {

@@ -38,6 +38,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
     audioAlertsEnabled,
     toggleAudioAlerts,
     updateMapSettings,
+    t,
   } = useUIContext();
 
   const handleZoomIn = () => {
@@ -75,7 +76,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
           className="gap-1 text-xs"
         >
           <Compass className="h-3.5 w-3.5" />
-          2.5D ISO
+          {t('projection25D', '2.5D ISO')}
         </Button>
         <Button
           size="xs"
@@ -84,7 +85,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
           className="gap-1 text-xs"
         >
           <Navigation2 className="h-3.5 w-3.5" />
-          2D TOP
+          {t('projection2D', '2D TOP')}
         </Button>
       </div>
 
@@ -107,7 +108,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <Waves className="h-3.5 w-3.5 text-cyan-400" />
-            5 Primary Channels
+            {t('fiveChannels', '5 Primary Channels')}
           </span>
           <Eye className={`h-3 w-3 ${mapSettings.showPrimaryChannels ? 'text-cyan-400' : 'text-slate-600'}`} />
         </button>
@@ -124,7 +125,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <Radio className="h-3.5 w-3.5 text-amber-400" />
-            18 AWS Stations
+            {t('eighteenAws', '18 AWS Stations')}
           </span>
           <Eye className={`h-3 w-3 ${mapSettings.showWeatherStations ? 'text-amber-400' : 'text-slate-600'}`} />
         </button>
@@ -141,7 +142,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <Cpu className="h-3.5 w-3.5 text-blue-400" />
-            20 GMDA Pumps
+            {t('twentyPumps', '20 GMDA Pumps')}
           </span>
           <Eye className={`h-3 w-3 ${mapSettings.showDrainagePumps ? 'text-blue-400' : 'text-slate-600'}`} />
         </button>
@@ -158,7 +159,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <Tent className="h-3.5 w-3.5 text-emerald-400" />
-            Rescue Camps (⛺)
+            {t('rescueCamps', 'Rescue Camps')} (⛺)
           </span>
           <Eye className={`h-3 w-3 ${mapSettings.showRescueCamps ? 'text-emerald-400' : 'text-slate-600'}`} />
         </button>
@@ -175,7 +176,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <Waves className="h-3.5 w-3.5 text-cyan-400" />
-            Inundation Heatmap
+            {t('inundationHeatmap', 'Inundation Heatmap')}
           </span>
           <Eye className={`h-3 w-3 ${mapSettings.showWaterDepthHeatmap ? 'text-cyan-400' : 'text-slate-600'}`} />
         </button>
@@ -192,7 +193,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <Navigation2 className="h-3.5 w-3.5 text-blue-400 rotate-45" />
-            Flow Vectors
+            {t('flowVectors', 'Flow Vectors')}
           </span>
           <Eye className={`h-3 w-3 ${mapSettings.showFlowVectors ? 'text-cyan-400' : 'text-slate-600'}`} />
         </button>
@@ -209,7 +210,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <Activity className="h-3.5 w-3.5 text-rose-400 animate-pulse" />
-            Critical Sonar Pulses
+            {t('criticalSonarPulses', 'Critical Sonar Pulses')}
           </span>
           <Eye className={`h-3 w-3 ${mapSettings.showCriticalAlertPulses ? 'text-rose-400' : 'text-slate-600'}`} />
         </button>

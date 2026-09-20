@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { MapViewSettings } from '@/types/simulation';
 import { SupportedLanguage, getTranslation } from '@/lib/i18n';
 
@@ -57,7 +57,28 @@ interface UIContextType {
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
 export function UIProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<SupportedLanguage>('en');
+  const [language, setLanguageState] = useState<SupportedLanguage>('en');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('hydromatrix_lang') as SupportedLanguage | null;
+      if (saved && ['en', 'as', 'hi', 'bn'].includes(saved)) {
+        setLanguageState(saved);
+      }
+    } catch {
+      // Ignore localStorage read errors
+    }
+  }, []);
+
+  const setLanguage = useCallback((lang: SupportedLanguage) => {
+    setLanguageState(lang);
+    try {
+      localStorage.setItem('hydromatrix_lang', lang);
+    } catch {
+      // Ignore localStorage write errors
+    }
+  }, []);
+
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(true);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(true);
   const [audioAlertsEnabled, setAudioAlertsEnabled] = useState(true);
