@@ -17,21 +17,37 @@ export class GeminiVoiceProvider {
 
   public async generateEmergencyResponse(
     userMessage: string,
-    history: TranscriptItem[] = []
+    history: TranscriptItem[] = [],
+    language: string = 'en'
   ): Promise<{ responseText: string; incidentData?: ExtractedIncidentData }> {
     if (!this.apiKey) {
+      const defaultReplies: Record<string, string> = {
+        as: 'গুৱাহাটী বানপানী কমাণ্ড: উদ্ধাৰকাৰী দল সষ্টম হৈ আছে। আপোনাৰ অৱস্থান আৰু পানীৰ গভীৰতা জনাওক।',
+        hi: 'गुवाहाटी बाढ़ आपातकालीन कमान: राहत दल तैयार हैं। कृपया अपना वार्ड और पानी का स्तर बताएं।',
+        bn: 'গুয়াহাটি বন্যা জরুরি কমান্ড: উদ্ধারকারী দল প্রস্তুত। অনুগ্রহ করে আপনার অবস্থান ও জলের স্তর জানান।',
+        en: 'Guwahati Flood Emergency Command: Water rescue units are standing by. Please state your exact ward location and current water level.',
+      };
       return {
-        responseText:
-          'Guwahati Flood Emergency Command: Water rescue units are standing by. Please state your exact ward location and current water level.',
+        responseText: defaultReplies[language] || defaultReplies.en,
       };
     }
 
-    const systemInstruction = `You are FLOWSHIELD, the AI Emergency Flood Response & Evacuation Dispatcher for Guwahati Metropolitan Development Authority (GMDA) and Assam SDMA.
+    let languageDirective = 'Respond in English.';
+    if (language === 'as') {
+      languageDirective = 'Respond in Assamese (অসমীয়া) script. Use clear, comforting Assamese phrasing for flood disaster victims in Guwahati.';
+    } else if (language === 'hi') {
+      languageDirective = 'Respond in Hindi (हिन्दी) script. Use clear, comforting Hindi phrasing for flood disaster victims in Guwahati.';
+    } else if (language === 'bn') {
+      languageDirective = 'Respond in Bengali (বাংলা) script. Use clear, comforting Bengali phrasing for flood disaster victims in Guwahati.';
+    }
+
+    const systemInstruction = `You are HYDRO MATRIX, the AI Emergency Flood Response & Evacuation Dispatcher for Guwahati Metropolitan Development Authority (GMDA) and Assam SDMA.
 Your role:
 1. Provide immediate, calm, actionable life-safety advice for urban flash flooding along the Bahini/Bharalu basin (e.g. Anil Nagar, Nabin Nagar, Tarun Nagar, Zoo Road, Lachit Nagar, Hatigaon).
 2. Urgently ask for location, estimated water depth, and if any elderly/children require immediate evacuation boat dispatch.
 3. Keep responses concise (under 2 sentences) because your response will be read over telephone or audio synthesizer.
-4. Always prioritize human life, electrical hazard warnings, and directing victims to elevated relief camps or GMDA rescue centers.`;
+4. Always prioritize human life, electrical hazard warnings, and directing victims to elevated relief camps or GMDA rescue centers.
+5. ${languageDirective}`;
 
     const contents = [
       ...history.slice(-4).map((h) => ({

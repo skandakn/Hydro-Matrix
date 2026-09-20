@@ -17,14 +17,16 @@ import {
   CheckCircle2,
   Bot,
   Headphones,
+  Globe,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CallSession } from '@/lib/voice/types';
+import { SUPPORTED_LANGUAGES } from '@/lib/i18n';
 
 
 export const EmergencyVoiceHelplineModal: React.FC = () => {
-  const { activeModal, setActiveModal, playTacticalAlertSound } = useUIContext();
+  const { activeModal, setActiveModal, playTacticalAlertSound, language, setLanguage, t } = useUIContext();
 
   // Mode: 'voice' | 'telephony' | 'logs'
   const [activeTab, setActiveTab] = useState<'voice' | 'telephony' | 'logs'>('voice');
@@ -247,13 +249,20 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
       utter.rate = 1.0;
       utter.pitch = 1.0;
       utter.volume = 1.0;
-      utter.lang = 'en-US';
+      if (language === 'hi') {
+        utter.lang = 'hi-IN';
+      } else if (language === 'bn' || language === 'as') {
+        utter.lang = 'bn-IN';
+      } else {
+        utter.lang = 'en-IN';
+      }
 
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
+        const langPrefix = language === 'hi' ? 'hi' : language === 'bn' || language === 'as' ? 'bn' : 'en';
         const preferredVoice = voices.find(
-          (v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('David') || v.name.includes('Jenny') || v.name.includes('Guy'))
-        ) || voices.find((v) => v.lang.startsWith('en')) || voices[0];
+          (v) => v.lang.startsWith(langPrefix) && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('David') || v.name.includes('Jenny') || v.name.includes('Guy'))
+        ) || voices.find((v) => v.lang.startsWith(langPrefix)) || voices[0];
 
         if (preferredVoice) {
           utter.voice = preferredVoice;
@@ -333,7 +342,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
       const res = await fetch('/api/voice/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callId, text: textToSend }),
+        body: JSON.stringify({ callId, text: textToSend, language }),
       });
 
       const data = await res.json();
@@ -427,7 +436,13 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'en-IN';
+      const speechLangMap: Record<string, string> = {
+        en: 'en-IN',
+        as: 'as-IN',
+        hi: 'hi-IN',
+        bn: 'bn-IN',
+      };
+      recognition.lang = speechLangMap[language] || 'en-IN';
       recognition.interimResults = false;
 
       recognition.onstart = () => {
@@ -459,7 +474,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-      <div className="relative flex flex-col h-[650px] w-full max-w-4xl rounded-2xl border border-slate-800 bg-slate-900/95 shadow-2xl text-slate-100 overflow-hidden">
+      <div className="relative flex flex-col h-[690px] max-h-[92vh] w-full max-w-4xl rounded-2xl border border-slate-800 bg-slate-900/95 shadow-2xl text-slate-100 overflow-hidden">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 bg-slate-950/80">
           <div className="flex items-center gap-3">
@@ -469,14 +484,14 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold tracking-wide text-white">
-                  FLOWSHIELD AI Emergency Calling & Voice Helpline
+                  HYDRO MATRIX AI Emergency Calling & Voice Helpline
                 </h2>
                 <Badge variant="critical" className="text-[10px] font-mono">
                   LIVE 24/7 DISPATCH
                 </Badge>
               </div>
               <p className="text-xs text-slate-400">
-                Guwahati Bahini/Bharalu Flood Command • Multimodal Voice & Telephony Engine
+                Guwahati Bahini/Bharalu Flood Command • Multilingual Voice & Telephony Engine
               </p>
             </div>
           </div>
@@ -585,6 +600,40 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
         <div className="flex-1 overflow-hidden p-6">
           {activeTab === 'voice' && (
             <div className="flex flex-col h-full">
+              {/* Multilingual Voice Language Selection Bar */}
+              <div className="flex items-center justify-between gap-2 p-2.5 mb-3 rounded-xl border border-cyan-500/30 bg-cyan-950/30 text-xs shadow-inner">
+                <div className="flex items-center gap-2 text-cyan-200">
+                  <Globe className="h-4 w-4 text-cyan-400 shrink-0" />
+                  <div>
+                    <span className="font-bold text-xs">{t('language')} / Multilingual Mode:</span>
+                    <span className="hidden sm:inline text-[11px] text-slate-300 ml-1.5">
+                      Talk or type in English, Assamese, Hindi, or Bengali
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {SUPPORTED_LANGUAGES.map((langOpt) => (
+                    <button
+                      key={langOpt.code}
+                      type="button"
+                      onClick={() => {
+                        setLanguage(langOpt.code);
+                        playTacticalAlertSound('action');
+                      }}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        language === langOpt.code
+                          ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/40 font-bold'
+                          : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
+                      }`}
+                      title={`Switch voice conversation to ${langOpt.name}`}
+                    >
+                      <span>{langOpt.flag}</span>
+                      <span>{langOpt.nativeName}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Messages container */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
                 {messages.map((m, idx) => (
@@ -595,7 +644,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center gap-1.5 mb-1 text-[10px] text-slate-400 font-mono">
-                      <span>{m.speaker === 'caller' ? 'CITIZEN / CALLER' : 'FLOWSHIELD DISPATCHER'}</span>
+                      <span>{m.speaker === 'caller' ? 'CITIZEN / CALLER' : 'HYDRO MATRIX DISPATCHER'}</span>
                       <span>•</span>
                       <span>{m.time}</span>
                     </div>
@@ -657,7 +706,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Report flood water level or ask evacuation guidance..."
+                  placeholder={t('reportPlaceholder')}
                   className="flex-1 rounded-lg border border-slate-800 bg-slate-950 px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
                 />
 
@@ -677,14 +726,14 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
               <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] text-slate-500 font-mono">Quick reports:</span>
                 {[
-                  'Water level is 3 feet high in Anil Nagar',
-                  'Bharalu drain overflowed near Zoo Road',
-                  'Need immediate evacuation boat for elderly',
+                  t('quickPrompt1'),
+                  t('quickPrompt2'),
+                  t('quickPrompt3'),
                 ].map((txt, i) => (
                   <button
                     key={i}
                     onClick={() => handleSendMessage(txt)}
-                    className="text-[10px] rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-2 py-0.5 border border-slate-700 transition-colors"
+                    className="text-[10px] rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-2 py-0.5 border border-slate-700 transition-colors cursor-pointer"
                   >
                     {txt}
                   </button>

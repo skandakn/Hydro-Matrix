@@ -8,8 +8,14 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { MapViewSettings } from '@/types/simulation';
+import { SupportedLanguage, getTranslation } from '@/lib/i18n';
 
 interface UIContextType {
+  // Multilingual Support
+  language: SupportedLanguage;
+  setLanguage: (lang: SupportedLanguage) => void;
+  t: (key: string, fallback?: string) => string;
+
   // Drawer visibility
   isLeftDrawerOpen: boolean;
   setIsLeftDrawerOpen: (open: boolean) => void;
@@ -41,6 +47,7 @@ interface UIContextType {
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
 export function UIProvider({ children }: { children: React.ReactNode }) {
+  const [language, setLanguage] = useState<SupportedLanguage>('en');
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(true);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(true);
   const [audioAlertsEnabled, setAudioAlertsEnabled] = useState(true);
@@ -145,9 +152,16 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     }
   }, [audioAlertsEnabled]);
 
+  const t = useCallback((key: string, fallback?: string) => {
+    return getTranslation(language, key, fallback);
+  }, [language]);
+
   return (
     <UIContext.Provider
       value={{
+        language,
+        setLanguage,
+        t,
         isLeftDrawerOpen,
         setIsLeftDrawerOpen,
         toggleLeftDrawer,

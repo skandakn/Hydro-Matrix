@@ -128,13 +128,14 @@ export class EmergencyVoiceAgent {
 
   public async processUserSpeech(
     callId: string,
-    userText: string
+    userText: string,
+    language: string = 'en'
   ): Promise<{ responseText: string; audioBase64?: string; incident?: ExtractedIncidentData }> {
     const session = callStore.get(callId);
     const history = session ? session.transcript : [];
 
     // 1. Generate intelligent emergency response with Gemini
-    const { responseText, incidentData } = await this.gemini.generateEmergencyResponse(userText, history);
+    const { responseText, incidentData } = await this.gemini.generateEmergencyResponse(userText, history, language);
 
     // 2. Synthesize low-latency natural voice with ElevenLabs
     const audioBuffer = await this.elevenLabs.synthesize(responseText);

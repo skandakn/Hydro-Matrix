@@ -4,19 +4,20 @@ import { getEmergencyVoiceAgent } from '@/lib/voice/emergency-agent';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { callId, text } = body;
+    const { callId, text, language = 'en' } = body;
 
     if (!text || typeof text !== 'string') {
       return NextResponse.json({ error: 'Text message required' }, { status: 400 });
     }
 
     const agent = getEmergencyVoiceAgent();
-    const result = await agent.processUserSpeech(callId || 'default_session', text);
+    const result = await agent.processUserSpeech(callId || 'default_session', text, language);
 
     const cleanText = (result.responseText || '').replace(/[*_#`]/g, '').trim();
     const firstSentence = cleanText.split(/[.!?]/)[0]?.slice(0, 180)?.trim() || cleanText.slice(0, 180).trim();
+    const ttsLocale = language === 'as' ? 'as' : language === 'hi' ? 'hi' : language === 'bn' ? 'bn' : 'en-IN';
     const clientAudioUrl = firstSentence
-      ? `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-IN&client=tw-ob&q=${encodeURIComponent(firstSentence)}`
+      ? `https://translate.google.com/translate_tts?ie=UTF-8&tl=${ttsLocale}&client=tw-ob&q=${encodeURIComponent(firstSentence)}`
       : undefined;
 
     return NextResponse.json({
