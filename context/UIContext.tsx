@@ -100,6 +100,10 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
       if (!AudioContextClass) return;
 
       const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -113,7 +117,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         osc.frequency.setValueAtTime(880, now);
         osc.frequency.setValueAtTime(740, now + 0.1);
         osc.frequency.setValueAtTime(880, now + 0.2);
-        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.setValueAtTime(0.25, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
         osc.start(now);
         osc.stop(now + 0.35);
@@ -121,17 +125,19 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(520, now);
         osc.frequency.exponentialRampToValueAtTime(440, now + 0.2);
-        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.setValueAtTime(0.2, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
         osc.start(now);
         osc.stop(now + 0.25);
       } else {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(980, now);
-        gain.gain.setValueAtTime(0.05, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        // Audible two-tone dispatch alert (D5 -> A5)
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, now);
+        osc.frequency.setValueAtTime(880, now + 0.08);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
         osc.start(now);
-        osc.stop(now + 0.08);
+        osc.stop(now + 0.24);
       }
     } catch {
       // Audio context might be restricted before user gesture

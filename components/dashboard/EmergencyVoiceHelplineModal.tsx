@@ -34,6 +34,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
     text: string;
     time: string;
     audioBase64?: string;
+    clientAudioUrl?: string;
   }[]>([
     {
       speaker: 'assistant',
@@ -65,6 +66,17 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Preload and register speech synthesis voices on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const loadVoices = () => {
+        window.speechSynthesis.getVoices();
+      };
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
   // Pre-prime audio on user interaction to bypass browser autoplay restrictions
   const primeAudioElement = () => {
     try {
@@ -72,22 +84,52 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
         audioRef.current = new Audio();
       }
       if (audioRef.current) {
-        // Load an empty blob or trigger silent warmup
         audioRef.current.pause();
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        window.speechSynthesis.getVoices();
       }
     } catch (e) {
       console.warn('Audio priming note:', e);
     }
   };
 
-  // Robust sound playback with ElevenLabs + Google Neural Audio + Web Speech API fallback
-  const playAudio = (audioBase64?: string, textFallback?: string, messageIndex?: number) => {
+  // Convert Base64 MP3 stream into safe Blob Object URL
+  const base64ToBlobUrl = (base64: string): string => {
+    try {
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
+      return URL.createObjectURL(blob);
+    } catch (e) {
+      console.warn('Base64 to blob conversion failed, falling back to data URL:', e);
+      return `data:audio/mpeg;base64,${base64}`;
+    }
+  };
+
+  // Multi-tier audio playback engine:
+  // Tier 1: ElevenLabs synthesized MP3 audio (via Blob URL)
+  // Tier 2: Direct Google Neural Audio stream via browser HTML5 Audio element
+  // Tier 3: Resilient Web Speech API with Chrome pause/resume workaround
+  const playAudio = (
+    audioBase64?: string,
+    textFallback?: string,
+    messageIndex?: number,
+    clientAudioUrl?: string
+  ) => {
     try {
       if (messageIndex !== undefined) {
         setActivePlayingId(messageIndex);
       }
       playTacticalAlertSound('action');
 
+      // 1. If base64 audio is provided by ElevenLabs, play it via Blob URL
       if (audioBase64 && audioBase64.length > 50) {
         if (!audioRef.current && typeof window !== 'undefined') {
           audioRef.current = new Audio();
@@ -95,7 +137,8 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
 
         if (audioRef.current) {
           audioRef.current.pause();
-          audioRef.current.src = `data:audio/mpeg;base64,${audioBase64}`;
+          const srcUrl = base64ToBlobUrl(audioBase64);
+          audioRef.current.src = srcUrl;
           audioRef.current.volume = 1.0;
           setIsPlayingAudio(true);
 
@@ -105,33 +148,73 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
           };
 
           audioRef.current.onerror = (e) => {
-            console.warn('Audio element error, falling back to Web Speech synthesis:', e);
-            setIsPlayingAudio(false);
-            setActivePlayingId(null);
-            speakWithBrowserSynthesis(textFallback);
+            console.warn('ElevenLabs audio playback failed, falling back to Google Neural/Web Speech:', e);
+            playWithGoogleNeuralOrSpeech(textFallback, clientAudioUrl);
           };
 
           const playPromise = audioRef.current.play();
           if (playPromise !== undefined) {
             playPromise.catch((err) => {
-              console.warn('Browser media autoplay restricted, falling back to Web Speech:', err);
-              setIsPlayingAudio(false);
-              setActivePlayingId(null);
-              speakWithBrowserSynthesis(textFallback);
+              console.warn('Autoplay restricted on ElevenLabs audio:', err);
+              playWithGoogleNeuralOrSpeech(textFallback, clientAudioUrl);
             });
           }
           return;
         }
       }
 
-      // If no audioBase64 or failed, speak with Web Speech API
-      speakWithBrowserSynthesis(textFallback);
+      // 2. Otherwise play via Google Neural Audio or Web Speech
+      playWithGoogleNeuralOrSpeech(textFallback, clientAudioUrl);
     } catch (e) {
       console.error('Audio playback exception:', e);
+      playWithGoogleNeuralOrSpeech(textFallback, clientAudioUrl);
+    }
+  };
+
+  const playWithGoogleNeuralOrSpeech = (text?: string, clientAudioUrl?: string) => {
+    if (!text || typeof window === 'undefined') {
       setIsPlayingAudio(false);
       setActivePlayingId(null);
-      speakWithBrowserSynthesis(textFallback);
+      return;
     }
+
+    const cleanText = text.replace(/[*_#`]/g, '').trim();
+    const sentence = cleanText.split(/[.!?]/)[0]?.slice(0, 180)?.trim() || cleanText.slice(0, 180).trim();
+    const ttsUrl = clientAudioUrl || (sentence ? `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-IN&client=tw-ob&q=${encodeURIComponent(sentence)}` : null);
+
+    if (ttsUrl) {
+      try {
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+        }
+        audioRef.current.pause();
+        audioRef.current.src = ttsUrl;
+        audioRef.current.volume = 1.0;
+        setIsPlayingAudio(true);
+
+        audioRef.current.onended = () => {
+          setIsPlayingAudio(false);
+          setActivePlayingId(null);
+        };
+
+        audioRef.current.onerror = () => {
+          // Fall back to Web Speech API
+          speakWithBrowserSynthesis(cleanText);
+        };
+
+        const playPromise = audioRef.current.play();
+        if (playPromise) {
+          playPromise.catch(() => {
+            speakWithBrowserSynthesis(cleanText);
+          });
+        }
+        return;
+      } catch {
+        // Fall back directly to Web Speech API
+      }
+    }
+
+    speakWithBrowserSynthesis(cleanText);
   };
 
   const speakWithBrowserSynthesis = (text?: string) => {
@@ -142,33 +225,46 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
     }
 
     try {
-      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+
       const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 1.05;
+      utter.rate = 1.0;
       utter.pitch = 1.0;
       utter.volume = 1.0;
+      utter.lang = 'en-US';
 
-      // Select natural English voice if available
       const voices = window.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(
-        (v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('David'))
-      ) || voices.find((v) => v.lang.startsWith('en'));
+      if (voices.length > 0) {
+        const preferredVoice = voices.find(
+          (v) => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('David') || v.name.includes('Jenny') || v.name.includes('Guy'))
+        ) || voices.find((v) => v.lang.startsWith('en')) || voices[0];
 
-      if (preferredVoice) {
-        utter.voice = preferredVoice;
+        if (preferredVoice) {
+          utter.voice = preferredVoice;
+        }
       }
 
       setIsPlayingAudio(true);
+      utter.onstart = () => {
+        setIsPlayingAudio(true);
+      };
       utter.onend = () => {
         setIsPlayingAudio(false);
         setActivePlayingId(null);
       };
-      utter.onerror = () => {
+      utter.onerror = (e) => {
+        console.warn('Web Speech API note:', e);
         setIsPlayingAudio(false);
         setActivePlayingId(null);
       };
 
       window.speechSynthesis.speak(utter);
+
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
     } catch (err) {
       console.error('Web Speech API error:', err);
       setIsPlayingAudio(false);
@@ -179,6 +275,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
   // Sound check / test speaker function
   const handleTestSoundCheck = () => {
     primeAudioElement();
+    playTacticalAlertSound('critical');
     const testText = 'Emergency broadcast system operational. Voice audio is working properly.';
     playAudio(undefined, testText, 999);
   };
@@ -226,11 +323,12 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
           text: data.responseText,
           time: timeStr,
           audioBase64: data.audioBase64,
+          clientAudioUrl: data.clientAudioUrl,
         };
         setMessages((prev) => [...prev, assistantMsg]);
 
         // Auto-play voice response immediately
-        playAudio(data.audioBase64, data.responseText, messages.length + 1);
+        playAudio(data.audioBase64, data.responseText, messages.length + 1, data.clientAudioUrl);
       }
     } catch (err) {
       console.error('Failed to process message:', err);
@@ -488,7 +586,7 @@ export const EmergencyVoiceHelplineModal: React.FC = () => {
                         <div className="mt-2 pt-1.5 border-t border-slate-700/60 flex items-center justify-between">
                           <button
                             type="button"
-                            onClick={() => playAudio(m.audioBase64, m.text, idx)}
+                            onClick={() => playAudio(m.audioBase64, m.text, idx, m.clientAudioUrl)}
                             className={`inline-flex items-center gap-1.5 text-[11px] font-medium transition-colors cursor-pointer group ${
                               activePlayingId === idx && isPlayingAudio
                                 ? 'text-amber-400 font-bold animate-pulse'

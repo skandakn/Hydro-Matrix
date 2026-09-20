@@ -46,7 +46,11 @@ export class ElevenLabsVoiceProvider {
         }
 
         const errText = await res.text();
-        console.warn(`[ElevenLabs] TTS error status with voice ${voiceId}:`, res.status, errText);
+        console.warn(`[ElevenLabs] TTS status ${res.status}:`, errText);
+        if (res.status === 401) {
+          // Key quota exceeded or unauthorized; break immediately to fallback
+          break;
+        }
       } catch (err) {
         console.warn(`[ElevenLabs] TTS exception with voice ${voiceId}:`, err);
       }

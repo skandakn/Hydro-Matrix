@@ -13,10 +13,17 @@ export async function POST(req: NextRequest) {
     const agent = getEmergencyVoiceAgent();
     const result = await agent.processUserSpeech(callId || 'default_session', text);
 
+    const cleanText = (result.responseText || '').replace(/[*_#`]/g, '').trim();
+    const firstSentence = cleanText.split(/[.!?]/)[0]?.slice(0, 180)?.trim() || cleanText.slice(0, 180).trim();
+    const clientAudioUrl = firstSentence
+      ? `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-IN&client=tw-ob&q=${encodeURIComponent(firstSentence)}`
+      : undefined;
+
     return NextResponse.json({
       success: true,
       responseText: result.responseText,
       audioBase64: result.audioBase64,
+      clientAudioUrl,
       incident: result.incident,
     });
   } catch (err: unknown) {
