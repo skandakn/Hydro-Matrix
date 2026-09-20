@@ -129,7 +129,7 @@ $$S_{f, ij} = -\nabla H = -\frac{H_i - H_j}{\Delta x}$$
 
 Inter-cell flux velocity is computed using **Manning's open-channel equation**:
 
-$$v_{ij} = \frac{1}{n} \cdot R_h^{2/3} \cdot |S_{f, ij}|^{1/2} \cdot \operatorname{sgn}(H_i - H_j)$$
+$$v_{ij} = \frac{1}{n} \cdot R_h^{2/3} \cdot |S_{f, ij}|^{1/2} \cdot \mathrm{sgn}(H_i - H_j)$$
 
 * $n$: Manning's roughness coefficient ($n = 0.025$ for lined masonry channels like Bharalu/Bahini; $n = 0.050$ for densely built urban residential bowls like Anil Nagar).
 * $R_h$: Hydraulic radius, approximated for shallow overland flow as $R_h \approx \min(h_i, |H_i - H_j|)$.
@@ -208,7 +208,7 @@ Where DEFCON thresholds are defined as:
 
 Demographic impact is computed dynamically from affected cells and calibrated to Guwahati's actual urban basin census:
 
-$$\text{Pop}_{\text{affected}} = \min\left( P_{\max}, \; \operatorname{round}\left( \frac{\sum_{k \in \text{Basin}} w_k \cdot N_k}{N_{\text{total\_cells}}} \cdot P_{\text{basin}} \right) \right)$$
+$$\text{Pop}_{\text{affected}} = \min\left( P_{\max}, \; \mathrm{round}\left( \frac{\sum_{k \in \text{Basin}} w_k \cdot N_k}{N_{\text{total\_cells}}} \cdot P_{\text{basin}} \right) \right)$$
 
 * $P_{\max} = 1,500,000$ (Metropolitan boundary population).
 * $P_{\text{basin}} = 1,050,000$ (Bharalu / Bahini watershed residential population).
@@ -292,7 +292,7 @@ q_N = np.where(sum_dPhi > 0, np.minimum(dPhi_N * 0.20, max_outbound * (dPhi_N / 
 
 Depth-averaged directional velocities are calculated using `np.gradient()` spatial derivatives and Manning's open-channel roughness matrix $\mathbf{N}_{\text{Manning}}$:
 
-$$\nabla \mathbf{\Phi} = \left[ \frac{\partial \mathbf{\Phi}}{\partial x}, \; \frac{\partial \mathbf{\Phi}}{\partial y} \right] = \operatorname{np.gradient}(\mathbf{\Phi}, \; \Delta x)$$
+$$\nabla \mathbf{\Phi} = \left[ \frac{\partial \mathbf{\Phi}}{\partial x}, \; \frac{\partial \mathbf{\Phi}}{\partial y} \right] = \text{np.gradient}(\mathbf{\Phi}, \; \Delta x)$$
 
 $$\mathbf{V}_{\text{speed}} = \frac{1}{\mathbf{N}_{\text{Manning}}} \odot \mathbf{R}_h^{2/3} \odot \left( \left(\frac{\partial \mathbf{\Phi}}{\partial x}\right)^2 + \left(\frac{\partial \mathbf{\Phi}}{\partial y}\right)^2 \right)^{1/4}$$
 
