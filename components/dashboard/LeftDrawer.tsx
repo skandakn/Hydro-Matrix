@@ -157,7 +157,11 @@ export const LeftDrawer: React.FC = () => {
 
       <div className="p-4 space-y-5 text-slate-200">
         {/* --- SECTION 1: SIMULATION TIMELINE (FIXED 6-HOUR INTERVALS) --- */}
-        <div className="rounded-xl border border-cyan-500/30 bg-slate-900/60 p-3.5 shadow-inner space-y-3">
+        <div
+          data-tour="simulation-timeline"
+          id="tour-simulation-timeline"
+          className="rounded-xl border border-cyan-500/30 bg-slate-900/60 p-3.5 shadow-inner space-y-3"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-300">
               <Clock className="h-3.5 w-3.5 text-cyan-400" />
@@ -293,94 +297,12 @@ export const LeftDrawer: React.FC = () => {
           </div>
         </div>
 
-        {/* --- SECTION 2: 20 GMDA AUTO-PRIMING PUMPS HARDWARE CONTROLLER --- */}
-        <div className="space-y-2.5 rounded-xl border border-blue-500/40 bg-blue-950/20 p-3.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300 uppercase tracking-wider">
-              <Cpu className="h-4 w-4 text-blue-400" />
-              <span>20 GMDA Auto-Priming Pumps</span>
-            </div>
-            <Badge variant={activePumps === 20 ? 'safe' : activePumps > 0 ? 'warning' : 'critical'} className="text-[10px] font-mono">
-              {activePumps}/20 RUNNING
-            </Badge>
-          </div>
-
-          <p className="text-[11px] text-slate-300 leading-tight">
-            High-power drainage pumps stationed at flood-prone neighborhoods: Anil Nagar, Nabin Nagar, Rukminigaon, and Tarun Nagar.
-          </p>
-
-          {/* Master Pump Controls */}
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <Button
-              size="xs"
-              variant={allPumpsActive ? 'default' : 'cyan'}
-              onClick={() => setAllGMDAPumpsState(!allPumpsActive)}
-              className="text-[11px] h-7"
-            >
-              <Power className="h-3 w-3 mr-1" />
-              {allPumpsActive ? 'Turn Off All' : 'Turn On All 20 Pumps'}
-            </Button>
-
-            <Button
-              size="xs"
-              variant="destructive"
-              onClick={() => {
-                simulateGMDAPumpsFailure();
-                playTacticalAlertSound('critical');
-              }}
-              className="text-[11px] h-7 bg-rose-950 hover:bg-rose-900 border border-rose-600/50"
-              title="Simulate electrical power failure across all GMDA dewatering pumps"
-            >
-              <AlertOctagon className="h-3 w-3 mr-1 text-rose-400" />
-              Simulate Power Outage
-            </Button>
-          </div>
-
-          {/* Expandable Individual Pump Station List */}
-          <div className="pt-1">
-            <button
-              onClick={() => setPumpsExpanded(!pumpsExpanded)}
-              className="w-full text-[11px] text-cyan-300 hover:text-cyan-200 flex items-center justify-between py-1 border-t border-blue-900/40"
-            >
-              <span>{pumpsExpanded ? 'Hide individual stations' : 'Configure individual 20 pump stations'}</span>
-              <span className="font-mono text-[10px]">{pumpsExpanded ? '▲' : '▼'}</span>
-            </button>
-
-            {pumpsExpanded && (
-              <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                {gmdaPumps.map((pump) => {
-                  const isActive = activePumpIds.has(pump.id);
-                  return (
-                    <div
-                      key={pump.id}
-                      className="flex items-center justify-between rounded bg-slate-900/80 p-2 border border-slate-800 text-[11px]"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-200">{pump.name}</div>
-                        <div className="text-[10px] text-slate-400">
-                          {pump.capacityM3Hr} m³/hr • {pump.channelDischarge}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => toggleGMDAPump(pump.id)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-colors ${
-                          isActive
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                            : 'bg-rose-950/50 text-rose-300 border border-rose-500/40'
-                        }`}
-                      >
-                        {isActive ? 'RUNNING' : 'STOPPED'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* --- SECTION 3: RAINFALL INTENSITY (CATCHMENT AREA) --- */}
-        <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5">
+        {/* --- SECTION 2 (TOUR STEP 2): RAINFALL INTENSITY (CATCHMENT AREA) --- */}
+        <div
+          data-tour="rainfall-slider"
+          id="tour-rainfall-slider"
+          className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-900/50 p-3.5"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
               <CloudRain className="h-4 w-4 text-cyan-400" />
@@ -423,79 +345,182 @@ export const LeftDrawer: React.FC = () => {
           </div>
         </div>
 
-        {/* --- SECTION 4: MAIN RIVER FLOOD GATE (BHARALUMUKH SLUICE) --- */}
-        <div className="space-y-3 rounded-xl border border-cyan-500/30 bg-slate-900/50 p-3.5 text-xs">
-          <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
-            <span className="flex items-center gap-1.5 text-cyan-300 font-bold">
-              <Waves className="h-4 w-4 text-cyan-400" />
-              Main River Flood Gate (Bharalumukh Sluice)
-            </span>
+        {/* --- SECTION 3 (TOUR STEP 3): GMDA PUMPS & SLUICE GATE CONTROLS (CITY DEFENSES) --- */}
+        <div
+          data-tour="city-defenses"
+          id="tour-city-defenses"
+          className="space-y-3.5 rounded-2xl border border-blue-500/40 bg-slate-900/40 p-3.5 shadow-lg shadow-blue-950/30"
+        >
+          <div className="flex items-center justify-between border-b border-blue-500/20 pb-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-300 uppercase tracking-wider">
+              <ShieldAlert className="h-4 w-4 text-cyan-400" />
+              <span>City Defenses & Drainage Controls</span>
+            </div>
+            <Badge variant="cyan" className="text-[9px] font-mono">
+              PUMPS & SLUICE
+            </Badge>
           </div>
 
-          {/* Plain-English Explanation Note */}
-          <div className="rounded-lg bg-slate-950/80 border border-slate-800/80 p-2.5 space-y-1.5 text-[11px] text-slate-300 leading-relaxed">
-            <p className="font-semibold text-slate-200">
-              This gate stops the swollen Brahmaputra river from flowing backward into the city&apos;s drainage channels:
-            </p>
-            <ul className="space-y-1 text-slate-300 pl-1">
-              <li className="flex items-start gap-1.5">
-                <span className="text-cyan-400 font-bold">•</span>
-                <span>
-                  When the river rises higher than city drains, closing this gate stops river water from flooding the city, but also traps internal rainwater inside unless pumped out.
-                </span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-emerald-400 font-bold">•</span>
-                <span>
-                  <strong className="text-emerald-300">Gate OPEN:</strong> Rainwater drains naturally into the river by gravity (only works when the river is lower than city drains).
-                </span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <span className="text-amber-400 font-bold">•</span>
-                <span>
-                  <strong className="text-amber-300">Gate CLOSED:</strong> Blocks river backflow, but city rainwater cannot exit naturally and relies on emergency pumps.
-                </span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Clear State A / State B Toggle Switch */}
-          <div className="p-3 rounded-lg bg-slate-950/90 border border-slate-800 space-y-2">
+          {/* 1. 20 GMDA Auto-Priming Pumps Hardware Controller */}
+          <div className="space-y-2.5 rounded-xl border border-blue-500/30 bg-blue-950/20 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-300">River Barrier Status</span>
-              <Badge
-                variant={config.sluiceGateOpen ? 'safe' : 'critical'}
-                className="text-[10px]"
-              >
-                {config.sluiceGateOpen ? 'NATURAL DRAINAGE' : 'BARRIER ACTIVE'}
+              <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300 uppercase tracking-wider">
+                <Cpu className="h-4 w-4 text-blue-400" />
+                <span>20 GMDA Auto-Priming Pumps</span>
+              </div>
+              <Badge variant={activePumps === 20 ? 'safe' : activePumps > 0 ? 'warning' : 'critical'} className="text-[10px] font-mono">
+                {activePumps}/20 RUNNING
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 pt-1">
-              <button
-                onClick={() => setBrahmaputraSluiceGate(!config.sluiceGateOpen)}
-                className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-between border ${
-                  config.sluiceGateOpen
-                    ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/50 shadow-md shadow-emerald-950/30'
-                    : 'bg-rose-950/40 border-rose-500/50 text-rose-300 hover:bg-rose-900/50 shadow-md shadow-rose-950/30'
-                }`}
+            <p className="text-[11px] text-slate-300 leading-tight">
+              High-power drainage pumps stationed at flood-prone neighborhoods: Anil Nagar, Nabin Nagar, Rukminigaon, and Tarun Nagar.
+            </p>
+
+            {/* Master Pump Controls */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button
+                size="xs"
+                variant={allPumpsActive ? 'default' : 'cyan'}
+                onClick={() => setAllGMDAPumpsState(!allPumpsActive)}
+                className="text-[11px] h-7"
               >
-                <span className="text-left">
-                  {config.sluiceGateOpen
-                    ? 'State A: Gate Open (Natural Drainage)'
-                    : 'State B: Gate Closed (Brahmaputra Rising / River Barrier Active)'}
-                </span>
-                <span className="text-[10px] font-mono underline ml-1 shrink-0">
-                  {config.sluiceGateOpen ? 'Click to Close' : 'Click to Open'}
-                </span>
-              </button>
+                <Power className="h-3 w-3 mr-1" />
+                {allPumpsActive ? 'Turn Off All' : 'Turn On All 20 Pumps'}
+              </Button>
+
+              <Button
+                size="xs"
+                variant="destructive"
+                onClick={() => {
+                  simulateGMDAPumpsFailure();
+                  playTacticalAlertSound('critical');
+                }}
+                className="text-[11px] h-7 bg-rose-950 hover:bg-rose-900 border border-rose-600/50"
+                title="Simulate electrical power failure across all GMDA dewatering pumps"
+              >
+                <AlertOctagon className="h-3 w-3 mr-1 text-rose-400" />
+                Simulate Power Outage
+              </Button>
             </div>
 
-            <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-900">
-              <span>Brahmaputra River Water Level:</span>
-              <span className="font-mono text-cyan-300 font-semibold">
-                {config.brahmaputraFloodStageMeters || 48.2}m (Danger Mark: 50.5m)
+            {/* Expandable Individual Pump Station List */}
+            <div className="pt-1">
+              <button
+                onClick={() => setPumpsExpanded(!pumpsExpanded)}
+                className="w-full text-[11px] text-cyan-300 hover:text-cyan-200 flex items-center justify-between py-1 border-t border-blue-900/40"
+              >
+                <span>{pumpsExpanded ? 'Hide individual stations' : 'Configure individual 20 pump stations'}</span>
+                <span className="font-mono text-[10px]">{pumpsExpanded ? '▲' : '▼'}</span>
+              </button>
+
+              {pumpsExpanded && (
+                <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {gmdaPumps.map((pump) => {
+                    const isActive = activePumpIds.has(pump.id);
+                    return (
+                      <div
+                        key={pump.id}
+                        className="flex items-center justify-between rounded bg-slate-900/80 p-2 border border-slate-800 text-[11px]"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-200">{pump.name}</div>
+                          <div className="text-[10px] text-slate-400">
+                            {pump.capacityM3Hr} m³/hr • {pump.channelDischarge}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => toggleGMDAPump(pump.id)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-colors ${
+                            isActive
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              : 'bg-rose-950/50 text-rose-300 border border-rose-500/40'
+                          }`}
+                        >
+                          {isActive ? 'RUNNING' : 'STOPPED'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Main River Flood Gate (Bharalumukh Sluice) */}
+          <div className="space-y-3 rounded-xl border border-cyan-500/30 bg-slate-900/50 p-3 text-xs">
+            <div className="flex items-center justify-between text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
+              <span className="flex items-center gap-1.5 text-cyan-300 font-bold">
+                <Waves className="h-4 w-4 text-cyan-400" />
+                Main River Flood Gate (Bharalumukh Sluice)
               </span>
+            </div>
+
+            {/* Plain-English Explanation Note */}
+            <div className="rounded-lg bg-slate-950/80 border border-slate-800/80 p-2.5 space-y-1.5 text-[11px] text-slate-300 leading-relaxed">
+              <p className="font-semibold text-slate-200">
+                This gate stops the swollen Brahmaputra river from flowing backward into the city&apos;s drainage channels:
+              </p>
+              <ul className="space-y-1 text-slate-300 pl-1">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-cyan-400 font-bold">•</span>
+                  <span>
+                    When the river rises higher than city drains, closing this gate stops river water from flooding the city, but also traps internal rainwater inside unless pumped out.
+                  </span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-emerald-400 font-bold">•</span>
+                  <span>
+                    <strong className="text-emerald-300">Gate OPEN:</strong> Rainwater drains naturally into the river by gravity (only works when the river is lower than city drains).
+                  </span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-amber-400 font-bold">•</span>
+                  <span>
+                    <strong className="text-amber-300">Gate CLOSED:</strong> Blocks river backflow, but city rainwater cannot exit naturally and relies on emergency pumps.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Clear State A / State B Toggle Switch */}
+            <div className="p-3 rounded-lg bg-slate-950/90 border border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-300">River Barrier Status</span>
+                <Badge
+                  variant={config.sluiceGateOpen ? 'safe' : 'critical'}
+                  className="text-[10px]"
+                >
+                  {config.sluiceGateOpen ? 'NATURAL DRAINAGE' : 'BARRIER ACTIVE'}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                <button
+                  onClick={() => setBrahmaputraSluiceGate(!config.sluiceGateOpen)}
+                  className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-between border ${
+                    config.sluiceGateOpen
+                      ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/50 shadow-md shadow-emerald-950/30'
+                      : 'bg-rose-950/40 border-rose-500/50 text-rose-300 hover:bg-rose-900/50 shadow-md shadow-rose-950/30'
+                  }`}
+                >
+                  <span className="text-left">
+                    {config.sluiceGateOpen
+                      ? 'State A: Gate Open (Natural Drainage)'
+                      : 'State B: Gate Closed (Brahmaputra Rising / River Barrier Active)'}
+                  </span>
+                  <span className="text-[10px] font-mono underline ml-1 shrink-0">
+                    {config.sluiceGateOpen ? 'Click to Close' : 'Click to Open'}
+                  </span>
+                </button>
+              </div>
+
+              <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-900">
+                <span>Brahmaputra River Water Level:</span>
+                <span className="font-mono text-cyan-300 font-semibold">
+                  {config.brahmaputraFloodStageMeters || 48.2}m (Danger Mark: 50.5m)
+                </span>
+              </div>
             </div>
           </div>
         </div>

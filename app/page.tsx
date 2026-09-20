@@ -30,6 +30,7 @@ import { SitRepModal } from '@/components/dashboard/SitRepModal';
 import { GMDAInfoModal } from '@/components/dashboard/GMDAInfoModal';
 import { EmergencyVoiceHelplineModal } from '@/components/dashboard/EmergencyVoiceHelplineModal';
 import { RescueCampModal } from '@/components/dashboard/RescueCampModal';
+import { OnboardingTour } from '@/components/dashboard/OnboardingTour';
 
 export default function CrisisCommandPage() {
   const {
@@ -40,9 +41,24 @@ export default function CrisisCommandPage() {
     generateComparisonBenchmarks,
   } = useFloodSimulation();
 
-  const { playTacticalAlertSound } = useUIContext();
+  const { playTacticalAlertSound, startTour } = useUIContext();
   const { startSession, recordTelemetryTick, flushSession, saveBenchmarks } =
     useSessionPersistence();
+
+  // ── Auto-launch onboarding tour on first visit ───────────────────────────
+  useEffect(() => {
+    try {
+      const hasSeenTour = localStorage.getItem('flowshield_has_seen_tour');
+      if (!hasSeenTour) {
+        const timer = setTimeout(() => {
+          startTour();
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // LocalStorage access may fail in restricted contexts
+    }
+  }, [startTour]);
 
   const prevCritCountRef = useRef<number>(criticalZoneCount);
   const isPlayingRef = useRef(isPlaying);
@@ -107,7 +123,11 @@ export default function CrisisCommandPage() {
         <LeftDrawer />
 
         {/* Central Viewport: 2.5D Volumetric Grid Canvas */}
-        <div className="relative flex flex-1 h-full w-full overflow-hidden bg-slate-950">
+        <div
+          data-tour="map-canvas"
+          id="tour-map-canvas"
+          className="relative flex flex-1 h-full w-full overflow-hidden bg-slate-950"
+        >
           <FloodMap2D5 />
         </div>
 
@@ -122,6 +142,7 @@ export default function CrisisCommandPage() {
       <SitRepModal />
       <EmergencyVoiceHelplineModal />
       <RescueCampModal />
+      <OnboardingTour />
     </main>
   );
 }

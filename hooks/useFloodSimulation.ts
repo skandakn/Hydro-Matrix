@@ -279,15 +279,8 @@ export const useFloodSimulation = create<FloodSimulationStore>((set, get) => {
       });
 
       // Execute deterministic Cellular Automata physics step for the accumulated 6-hour period
-      let result = runSimulationStepPhysics(
+      const result = runSimulationStepPhysics(
         state.grid,
-        state.rainfall,
-        state.activePumpIds,
-        state.config
-      );
-      // Second pass to simulate 6-hour hydrological propagation
-      result = runSimulationStepPhysics(
-        result.nextGrid2D,
         state.rainfall,
         state.activePumpIds,
         state.config

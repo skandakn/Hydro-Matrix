@@ -318,16 +318,16 @@ export const FloodMap2D5: React.FC = () => {
           }
         }
 
-        // Water depth classification colors: Safe (<0.25m: emerald), Warning (0.25-0.75m: amber), Critical (>0.75m: red/crimson)
+        // Bidirectional water depth classification colors: Critical (>0.75m: crimson), Warning (0.25-0.75m: amber), Safe (<0.25m: emerald)
         let waterFill = 'transparent';
         let waterStroke = 'transparent';
 
         if (mapSettings.showWaterDepthHeatmap && hasWater) {
-          if (depth >= 0.75 || node.status === 'CRITICAL') {
+          if (depth >= 0.75) {
             const alpha = Math.min(0.90, 0.55 + depth * 0.15);
             waterFill = `rgba(244, 63, 94, ${alpha})`;
             waterStroke = '#fb7185';
-          } else if (depth >= 0.25 || node.status === 'WARNING') {
+          } else if (depth >= 0.25) {
             const alpha = Math.min(0.82, 0.45 + depth * 0.2);
             waterFill = `rgba(245, 158, 11, ${alpha})`;
             waterStroke = '#fcd34d';
@@ -439,7 +439,7 @@ export const FloodMap2D5: React.FC = () => {
 
           // Volumetric Water Layer (extrude height proportional to waterDepth)
           if (hasWater && mapSettings.showWaterDepthHeatmap) {
-            const waterExtrusion = Math.min(32, Math.max(3, depth * 12 * camera.zoom));
+            const waterExtrusion = Math.min(32, Math.max(1, depth * 14 * camera.zoom));
             const wy = cy - waterExtrusion;
 
             if (waterExtrusion > 1) {

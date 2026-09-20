@@ -15,6 +15,9 @@
 import { GridNode, SimulationConfig, AlertLevel } from '@/types/simulation';
 import { GRID_WIDTH, GRID_HEIGHT, CELL_AREA_SQ_METERS, GMDA_PUMP_STATIONS } from './cityGrid';
 
+export const GUWAHATI_MAX_POPULATION = 1500000; // 1.5 Million maximum metropolitan population
+export const LOCAL_BASIN_POPULATION = 1050000;  // Bahini/Bharalu watershed basin demographic limit
+
 export interface PhysicsStepResult {
   nextGrid: GridNode[];
   nextGrid2D: GridNode[][];
@@ -43,6 +46,9 @@ export function runSimulationStep(
 ): PhysicsStepResult {
   const criticalThreshold = config?.criticalThreshold ?? 0.75;
   const warningThreshold = config?.warningThreshold ?? 0.25;
+  const drainageEfficiency = config?.drainageSystemEfficiency ?? 1.0;
+  // Bharalumukh Sluice Gate State: true = State A (Open: Gravity Drainage Active), false = State B (Closed: Brahmaputra Backwater Barrier)
+  const isSluiceOpen = config?.sluiceGateOpen !== false;
 
   // 1. Resolve 2D grid structure
   const is2D = Array.isArray(currentGrid) && Array.isArray(currentGrid[0]);
@@ -64,7 +70,7 @@ export function runSimulationStep(
         return res;
       })();
 
-  // 2. Resolve Active GMDA Pumps Set
+  // 2. Resolve Active GMDA Pumps Set & Scaling
   const activePumpSet = new Set<string>();
   if (activePumps instanceof Set) {
     activePumps.forEach(id => activePumpSet.add(id));
@@ -83,40 +89,33 @@ export function runSimulationStep(
     }
   }
 
-  // --- STEP 1: PRECIPITATION STEP ---
-  // Add rainfall * factor to waterDepth of every cell
-  const precFactor = 0.0035; // Scaled factor for tangible responsive feedback
-  for (let y = 0; y < GRID_HEIGHT; y++) {
-    for (let x = 0; x < GRID_WIDTH; x++) {
-      const cell = grid2D[y][x];
-      if (!cell) continue;
+  const activePumpsCount = activePumpSet.size;
+  const totalPumpsCount = GMDA_PUMP_STATIONS.length; // 20 units
+  // Proportional scaling factor based on active units (0.0 to 1.0)
+  const pumpScale = totalPumpsCount > 0 ? activePumpsCount / totalPumpsCount : 0;
 
-      // Higher orographic lift on southern Khasi foothills
-      const orographic = cell.elevation > 70 ? 1.30 : cell.elevation > 55 ? 1.15 : 1.0;
-      const addedWater = rainfall > 0 ? (rainfall * precFactor) * orographic : 0;
-      const baseDepth = cell.waterDepth ?? cell.currentWaterLevel ?? 0;
-      cell.waterDepth = baseDepth + addedWater;
-    }
-  }
-
-  // --- STEP 2: INFILTRATION / DRAINAGE STEP ---
-  // Subtract drainage based on proximity to 5 channels or active GMDA pumps
+  // --- STEP 1: PRECIPITATION INFLOW & DISCHARGE / DRAINAGE BALANCE ---
   let totalDrainedVolume = 0;
+  const precFactor = 0.0020; // Calibrated factor: moderate rain (25 mm/h) produces ~0.050m inflow per tick
 
   for (let y = 0; y < GRID_HEIGHT; y++) {
     for (let x = 0; x < GRID_WIDTH; x++) {
       const cell = grid2D[y][x];
       if (!cell) continue;
 
-      // Brahmaputra River receives water and maintains high river baseline
+      // Brahmaputra River receives arterial runoff and maintains high perennial river stage
       if (cell.channel === 'Brahmaputra') {
         cell.waterDepth = Math.max(1.15, cell.waterDepth);
+        cell.currentWaterLevel = cell.waterDepth;
         continue;
       }
 
-      let drainDepth = 0;
+      // A. INFLOW FROM PRECIPITATION
+      // Higher orographic lift on southern Khasi foothills
+      const orographic = cell.elevation > 70 ? 1.30 : cell.elevation > 55 ? 1.15 : 1.0;
+      const inflowFromRain = rainfall > 0 ? (rainfall * precFactor) * orographic : 0;
 
-      // A. Channel Drainage (Bharalu, Bahini, Basistha, Mora Bharalu, Lakhimijan)
+      // B. NATURAL DRAINAGE (Governed by Bharalumukh Sluice Gate State)
       const isDirectChannel = !!cell.channel;
       let isAdjacentChannel = false;
       if (!isDirectChannel) {
@@ -136,52 +135,83 @@ export function runSimulationStep(
         }
       }
 
-      if (isDirectChannel) {
-        drainDepth += 0.055; // Channel conduit conveyance
-      } else if (isAdjacentChannel) {
-        drainDepth += 0.028; // Rapid storm run into adjacent channel
+      // River outlet points: Bharalumukh outfall (5, 2) & Lakhimijan outfall (2, 4)
+      const isRiverOutlet = (x === 5 && y === 2) || (x === 2 && y === 4);
+
+      let naturalDrainage = 0;
+      if (isSluiceOpen) {
+        // State A: Gate OPEN - Gravity Drainage Active
+        // Outflow to the river increases significantly; water levels steadily drop or drain away quickly under moderate rain
+        const riverOutflowRate = isRiverOutlet ? 0.090 : 0.0;
+        const channelConveyance = isDirectChannel ? 0.070 : isAdjacentChannel ? 0.040 : 0.020;
+        const soilInfil = (cell.permeability || 0.12) * 0.020;
+        naturalDrainage = (channelConveyance + riverOutflowRate + soilInfil) * drainageEfficiency;
+      } else {
+        // State B: Gate CLOSED - Brahmaputra Backwater Barrier
+        // Natural gravity discharge to the river outlet is blocked (river outflow rate = 0)
+        // Water builds up and pools inside the city basin unless active pumps discharge it
+        const riverOutflowRate = 0.0;
+        const channelConveyance = isDirectChannel ? 0.005 : isAdjacentChannel ? 0.003 : 0.002;
+        const soilInfil = (cell.permeability || 0.12) * 0.005;
+        naturalDrainage = (channelConveyance + riverOutflowRate + soilInfil) * drainageEfficiency;
       }
 
-      // B. GMDA Auto-Priming Dewatering Pump active extraction
-      const isDirectPump = pumpLocationMap.has(`${x}-${y}`);
-      let isAdjacentPump = false;
-      if (!isDirectPump) {
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (pumpLocationMap.has(`${x + dx}-${y + dy}`)) {
-              isAdjacentPump = true;
-              break;
+      // Silt/debris blockage constraint
+      if (cell.drainBlocked) {
+        naturalDrainage *= 0.15;
+      }
+
+      // C. PUMP DISCHARGE RATE
+      // When pumps are active (activePumps > 0), drainage scales proportionally with active units
+      let pumpDischargeRate = 0;
+      if (activePumpsCount > 0) {
+        const isDirectPump = pumpLocationMap.has(`${x}-${y}`);
+        let isAdjacentPump = false;
+        if (!isDirectPump) {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (pumpLocationMap.has(`${x + dx}-${y + dy}`)) {
+                isAdjacentPump = true;
+                break;
+              }
             }
+            if (isAdjacentPump) break;
           }
-          if (isAdjacentPump) break;
         }
+
+        // Localized pump intake suction
+        const localSuction = isDirectPump ? 0.160 : isAdjacentPump ? 0.080 : 0.0;
+        // Low-lying basin bowl drainage (Anil Nagar, Nabin Nagar, Rukminigaon, Tarun Nagar, etc.)
+        const isLowLyingOrFlooded = cell.elevation <= 53.5 || (cell.waterDepth ?? cell.currentWaterLevel ?? 0) > 0.01;
+        // Basin-wide suction scaled proportionally with active units
+        const basinSuction = isLowLyingOrFlooded ? (0.075 * pumpScale) : (0.030 * pumpScale);
+
+        // When pumps are turned ON, pumpDischargeRate outpaces moderate rainfall (~0.050m)
+        pumpDischargeRate = (localSuction + basinSuction) * drainageEfficiency;
       }
 
-      if (isDirectPump) {
-        drainDepth += 0.080; // Powerful localized suction
-      } else if (isAdjacentPump) {
-        drainDepth += 0.038; // Surrounding depression drawdown
-      }
+      // D. NET WATER CHANGE PER CELL
+      // netChange = inflowFromRain - (naturalDrainage + pumpDischargeRate)
+      const totalDischarge = naturalDrainage + pumpDischargeRate;
+      const netChange = inflowFromRain - totalDischarge;
 
-      // C. Permeability Soil Infiltration
-      const soilInfil = (cell.permeability || 0.12) * 0.018;
-      drainDepth += soilInfil;
+      const baseDepth = cell.waterDepth ?? cell.currentWaterLevel ?? 0;
+      // When pumps are ON or Gate is OPEN with moderate rain, netChange is negative and waterDepth actively decreases
+      const newWaterDepth = Math.max(0, baseDepth + netChange);
+      const actualDrainedDepth = Math.max(0, (baseDepth + Math.max(0, inflowFromRain)) - newWaterDepth);
+      totalDrainedVolume += actualDrainedDepth * CELL_AREA_SQ_METERS;
 
-      // Apply drainage subtraction
-      const actualDrain = Math.min(cell.waterDepth, drainDepth);
-      cell.waterDepth = Math.max(0, cell.waterDepth - actualDrain);
-      totalDrainedVolume += actualDrain * CELL_AREA_SQ_METERS;
+      cell.waterDepth = newWaterDepth;
 
       // Deepor Beel natural wetland baseline
       if (cell.infrastructure === 'wetland') {
-        cell.waterDepth = Math.max(0.45, cell.waterDepth);
+        cell.waterDepth = Math.max(0.40, cell.waterDepth);
       }
     }
   }
 
-  // --- STEP 3: FLOW STEP (CELLULAR AUTOMATA) ---
-  // For each cell, compare total height (elevation + waterDepth) with 4 orthogonal neighbors
-  // and move a portion of excess water to adjacent lower-elevation cells.
+  // --- STEP 2: FLOW STEP (CELLULAR AUTOMATA PROPAGATION) ---
+  // Compare total hydraulic head (elevation + waterDepth + barrier) with 4 orthogonal neighbors
   const H: number[][] = [];
   for (let y = 0; y < GRID_HEIGHT; y++) {
     const hRow: number[] = [];
@@ -221,6 +251,17 @@ export function runSimulationStep(
         const ny = y + dy;
         const nx = x + dx;
         if (ny >= 0 && ny < GRID_HEIGHT && nx >= 0 && nx < GRID_WIDTH) {
+          const neighbor = grid2D[ny][nx];
+
+          // Brahmaputra Backwater Barrier:
+          // When Sluice Gate is CLOSED, hydraulic transfer between city channels and river is completely blocked
+          const crossesRiverBoundary =
+            (cell.channel === 'Brahmaputra' && neighbor.channel !== 'Brahmaputra') ||
+            (cell.channel !== 'Brahmaputra' && neighbor.channel === 'Brahmaputra');
+          if (!isSluiceOpen && crossesRiverBoundary) {
+            continue;
+          }
+
           const neighborH = H[ny][nx];
           const diff = curH - neighborH;
           if (diff > 0.003) {
@@ -251,10 +292,9 @@ export function runSimulationStep(
     }
   }
 
-  // --- STEP 4: TELEMETRY SYNC & METRIC RECALCULATION ---
-  let floodedArea = 0; // count of cells where waterDepth > 0.1m
+  // --- STEP 3: TELEMETRY SYNC, BIDIRECTIONAL UPDATES & REALISTIC POPULATION CLAMPING ---
+  let floodedArea = 0; // count of non-river cells where waterDepth > 0.1m
   let floodedAreaSqKm = 0;
-  let affectedResidents = 0;
   let criticalZoneCount = 0;
   let warningZoneCount = 0;
   let maxWaterDepth = 0;
@@ -275,7 +315,7 @@ export function runSimulationStep(
       cell.drainageCapacity = cell.capacity;
       cell.channelType = cell.channel || 'none';
 
-      // Rate of water change
+      // Rate of water change: negative when receding, positive when rising
       cell.waterLevelDelta = parseFloat((cell.waterDepth - prevDepth).toFixed(4));
 
       // Velocity vectors
@@ -289,28 +329,28 @@ export function runSimulationStep(
       };
 
       if (speed > maxFlowVelocity) maxFlowVelocity = speed;
-      if (cell.waterDepth > maxWaterDepth) maxWaterDepth = cell.waterDepth;
+      if (cell.channel !== 'Brahmaputra' && cell.waterDepth > maxWaterDepth) maxWaterDepth = cell.waterDepth;
 
-      // Alert classification: Safe (<0.25m), Warning (0.25m - 0.75m), Critical (>=0.75m)
+      // Bidirectional Alert classification: Safe (<0.25m), Warning (0.25m - 0.75m), Critical (>=0.75m)
       let status: AlertLevel = 'SAFE';
-      if (cell.waterDepth >= criticalThreshold) {
+      if (cell.channel === 'Brahmaputra') {
+        status = 'SAFE';
+      } else if (cell.waterDepth >= criticalThreshold) {
         status = 'CRITICAL';
         criticalZoneCount++;
-        affectedResidents += cell.population;
       } else if (cell.waterDepth >= warningThreshold) {
         status = 'WARNING';
         warningZoneCount++;
-        affectedResidents += Math.round(cell.population * 0.6);
       }
       cell.status = status;
 
-      // Flooded area: cells where waterDepth > 0.1m
+      // Flooded area: cells where waterDepth > 0.10m (excluding perennial Brahmaputra River channel)
       if (cell.waterDepth > 0.10 && cell.channel !== 'Brahmaputra') {
         floodedArea++;
         floodedAreaSqKm += (CELL_AREA_SQ_METERS / 1_000_000);
       }
 
-      // Time to critical calculation (minutes)
+      // Dynamic Time to Critical calculation (minutes)
       if (status === 'CRITICAL') {
         cell.timeToCriticalMinutes = 0;
       } else if (cell.waterLevelDelta > 0.0005) {
@@ -318,12 +358,34 @@ export function runSimulationStep(
         const estMinutes = remaining / cell.waterLevelDelta;
         cell.timeToCriticalMinutes = (estMinutes > 0 && estMinutes <= 180) ? Math.round(estMinutes) : null;
       } else {
+        // Water is stable or actively receding: clear time to critical
         cell.timeToCriticalMinutes = null;
       }
 
       nextGrid.push(cell);
     }
   }
+
+  // --- REALISTIC POPULATION CLAMPING (Issue 3) ---
+  // Safe bounded calculation clamped to local watershed basin limit and hard-capped at GUWAHATI_MAX_POPULATION (1.5M)
+  const totalBasinCells = GRID_WIDTH * (GRID_HEIGHT - 2); // 288 terrestrial populated basin cells
+  const weightedFloodedScore = (
+    criticalZoneCount * 1.0 +
+    warningZoneCount * 0.6 +
+    Math.max(0, floodedArea - criticalZoneCount - warningZoneCount) * 0.25
+  );
+  const floodedCellsRatio = Math.min(1.0, Math.max(0, weightedFloodedScore / totalBasinCells));
+  const affectedResidents = Math.min(
+    GUWAHATI_MAX_POPULATION,
+    Math.round(floodedCellsRatio * LOCAL_BASIN_POPULATION)
+  );
+
+  // Bharalu River discharge telemetry:
+  // State A (Gate OPEN): arterial gravity flow into Brahmaputra (12 - 85 m³/s)
+  // State B (Gate CLOSED): gravity outflow blocked (0 m³/s); only mechanical pump discharge passes over barrier
+  const bahiniBharaluFlowM3S = isSluiceOpen
+    ? parseFloat(Math.max(12.0, Math.min(85.0, bahiniBharaluFlowAccum + (activePumpsCount * 1.5))).toFixed(1))
+    : parseFloat((activePumpsCount * 1.8).toFixed(1));
 
   return {
     nextGrid,
@@ -337,8 +399,8 @@ export function runSimulationStep(
     maxWaterDepth: parseFloat(maxWaterDepth.toFixed(2)),
     maxFlowVelocity: parseFloat(maxFlowVelocity.toFixed(2)),
     totalDrainedVolume: Math.round(totalDrainedVolume),
-    bahiniBharaluFlowM3S: parseFloat(Math.max(12.0, bahiniBharaluFlowAccum).toFixed(1)),
-    activePumpsCount: activePumpSet.size,
+    bahiniBharaluFlowM3S,
+    activePumpsCount,
   };
 }
 

@@ -33,6 +33,7 @@ import {
   PhoneCall,
   Tent,
   Globe,
+  HelpCircle,
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '@/lib/i18n';
@@ -57,6 +58,7 @@ export const Header: React.FC = () => {
     toggleAudioAlerts,
     setActiveModal,
     playTacticalAlertSound,
+    startTour,
   } = useUIContext();
 
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -102,7 +104,11 @@ export const Header: React.FC = () => {
     <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-slate-800/80 bg-slate-950/90 px-4 backdrop-blur-xl shadow-lg">
       {/* Brand & Incident Beacon */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
+        <div
+          data-tour="header-title"
+          id="tour-header-title"
+          className="flex items-center gap-2 p-1 rounded-xl transition-all"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-500/40 bg-cyan-950/40 shadow-md shadow-cyan-500/20">
             <ShieldAlert className="h-5 w-5 text-cyan-400" />
           </div>
@@ -305,6 +311,21 @@ export const Header: React.FC = () => {
         >
           <FileText className="h-3.5 w-3.5 text-slate-400" />
           <span className="hidden 2xl:inline">{t('sitRep')}</span>
+        </Button>
+
+        {/* Guided Onboarding Tour Launcher */}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            startTour();
+            playTacticalAlertSound('action');
+          }}
+          className="gap-1.5 text-xs border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/50 hover:border-cyan-400 shadow-sm shadow-cyan-950/40 group"
+          title="Take Interactive FlowShield Onboarding Tour"
+        >
+          <HelpCircle className="h-3.5 w-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
+          <span className="hidden sm:inline">Take Tour</span>
         </Button>
 
         {/* Tactical Sound Siren Toggle */}
