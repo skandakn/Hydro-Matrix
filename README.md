@@ -335,6 +335,54 @@ Tick 05 | Flooded Area: 0.00 km² | Critical: 0 | Max Depth: 0.07m | Pop: 0
 
 ## 🏛️ System Architecture
 
+```
+hydro-matrix/
+├── backend/                         # 🐍 Python Scientific & Telemetry Backend (FastAPI + NumPy)
+│   ├── main.py                      # FastAPI ASGI application & 60 FPS WebSocket broadcast hub
+│   ├── requirements.txt             # Python backend dependencies (FastAPI, NumPy, SciPy)
+│   ├── simulation/                  # 2D Navier-Stokes & Shallow Water Hydrological Solvers
+│   │   ├── hydrology_solver.py      # Vectorized 2D Saint-Venant diffusive wave solver
+│   │   ├── shallow_water_pde.py     # MacCormack shock-capturing predictor-corrector PDE scheme
+│   │   ├── manning_friction.py      # 2D Manning roughness matrix & friction slope tensor
+│   │   ├── cfl_limiter.py           # Courant-Friedrichs-Lewy (CFL) adaptive time-stepping
+│   │   ├── city_grid.py             # Guwahati calibrated 18x18 digital elevation model
+│   │   └── benchmarks.py            # Monte Carlo scenario sensitivity & parameter sweeps
+│   ├── optimization/                # Spatial Decision Engines
+│   │   ├── mcda_camp_placement.py   # Relief camp suitability scoring (2D SciPy convolution)
+│   │   └── evacuation_routing.py    # Dijkstra & A* safe egress graph router avoiding deep water
+│   ├── ml/                          # Machine Learning Surrogate Models
+│   │   └── flood_risk_predictor.py  # 15-min lead-time polynomial surrogate regression model
+│   ├── calibration/                 # Historical Model Validation
+│   │   └── historical_floods.py     # ASDMA 2022 & 2024 flood validation (NSE > 0.75, RMSE)
+│   ├── telemetry/                   # SCADA & IoT Sensor Services
+│   │   ├── aws_station_feed.py      # 18 AWS real-time sensor streams & microclimate telemetry
+│   │   ├── gmda_pumps_controller.py # 20 GMDA auto-priming pump stations SCADA supervisor
+│   │   └── exotel_telephony.py      # Exotel IVR emergency phone dispatch & carrier handoff
+│   └── database/                    # Persistence Models & Schemas
+│       └── models.py                # Pydantic & ORM schemas for sessions, calls, sitreps
+├── app/                             # ⚡ Next.js 14 App Router (Command Center Frontend)
+│   ├── page.tsx                     # 60 FPS master frame loop driver & scenario orchestrator
+│   ├── layout.tsx                   # Dark tactical command center layout & UIContext
+│   └── globals.css                  # Tactical glow filters, glassmorphic panels, DEFCON themes
+├── components/                      # Tactical UI & Geospatial Viewports
+│   ├── map/                         # 2.5D Volumetric Isometric & 2D GIS Retina Canvas
+│   │   ├── FloodMap2D5.tsx          # Dual-mode canvas engine with hydraulic vector particles
+│   │   ├── MapControls.tsx          # Camera pan/zoom & sensor/channel layer switches
+│   │   └── Legend.tsx               # Depth ramp, 5 primary channels, and pump indicators
+│   └── dashboard/                   # Tactical Drawers & Operations Modals
+│       ├── Header.tsx               # DEFCON alert beacon, mission clock, language switcher
+│       ├── LeftDrawer.tsx           # Rainfall slider (0-200 mm/h) & 20 GMDA pump toggles
+│       ├── RightDrawer.tsx          # 18 AWS telemetry feeds & Recharts discharge hydrographs
+│       ├── RescueCampModal.tsx      # Relief sanctuary inventory & evacuation allocator
+│       ├── EvacuationAdvisor.tsx    # Civil defense routing & safe path allocation
+│       ├── EmergencyVoiceHelplineModal.tsx # Multilingual AI emergency voice helpline
+│       ├── ComparisonModal.tsx      # Multi-scenario comparative behavioral matrix
+│       ├── SitRepModal.tsx          # Printable Executive Situation Debrief Report (SitRep)
+│       └── GMDAInfoModal.tsx        # GMDA GIS Comprehensive Drainage Master Plan & DPR
+├── hooks/                           # Zustand frame loop physics store & persistence hooks
+└── types/                           # Strict TypeScript interfaces for geospatial simulation
+```
+
 ```mermaid
 flowchart TB
     subgraph DataSources["Hardware & Telemetry Layer"]

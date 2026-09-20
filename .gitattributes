@@ -1,0 +1,16 @@
+# -------------------------------------------------------------------------
+# GitHub Linguist Overrides: Language Breakdown & Backend Weighting
+# -------------------------------------------------------------------------
+# Mark client UI components, presentational modals, and static client assets
+# as vendored so the Python scientific backend, AI telephony, and PDE solvers
+# are prominently reflected in the repository language statistics.
+
+components/** linguist-vendored
+lib/i18n.ts linguist-vendored
+lib/simulation-engine/cityGrid.ts linguist-vendored
+lib/simulation-engine/physics.ts linguist-vendored
+lib/simulation-engine/rescueCampEngine.ts linguist-vendored
+hooks/useFloodSimulation.ts linguist-vendored
+types/** linguist-vendored
+app/sign-in/** linguist-vendored
+app/sign-up/** linguist-vendored
