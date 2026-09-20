@@ -253,6 +253,7 @@ export const Header: React.FC = () => {
         <Button
           size="sm"
           variant="outline"
+          data-tour="relief-camps"
           onClick={() => {
             setActiveModal('rescue_camps');
             playTacticalAlertSound('action');
@@ -271,6 +272,7 @@ export const Header: React.FC = () => {
         <Button
           size="sm"
           variant="outline"
+          data-tour="evac-advisor"
           onClick={() => {
             setActiveModal('evacuation');
             playTacticalAlertSound('action');
@@ -286,6 +288,7 @@ export const Header: React.FC = () => {
         <Button
           size="sm"
           variant="outline"
+          data-tour="sitrep-trigger"
           onClick={() => {
             setActiveModal('export_report');
             playTacticalAlertSound('action');

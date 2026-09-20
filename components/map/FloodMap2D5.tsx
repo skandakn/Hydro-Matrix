@@ -66,13 +66,20 @@ export const FloodMap2D5: React.FC = () => {
 
   // Viewport camera scale and pan offsets state
   const [zoom, setZoom] = useState<number>(1.0);
-  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev * 1.25, 3.0));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev / 1.25, 0.5));
-  const handleResetView = () => {
+  const handleZoomIn = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setZoom((z) => Math.min(Number((z + 0.2).toFixed(2)), 2.5));
+  };
+  const handleZoomOut = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setZoom((z) => Math.max(Number((z - 0.2).toFixed(2)), 0.6));
+  };
+  const handleResetZoom = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setZoom(1.0);
-    setPanOffset({ x: 0, y: 0 });
+    setPan({ x: 0, y: 0 });
   };
 
   const [isDragging, setIsDragging] = useState(false);
@@ -102,22 +109,22 @@ export const FloodMap2D5: React.FC = () => {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     if (e.deltaY < 0) {
-      setZoom((prev) => Math.min(prev * 1.15, 3.0));
+      setZoom((z) => Math.min(Number((z + 0.2).toFixed(2)), 2.5));
     } else {
-      setZoom((prev) => Math.max(prev / 1.15, 0.5));
+      setZoom((z) => Math.max(Number((z - 0.2).toFixed(2)), 0.6));
     }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
       setIsDragging(true);
-      setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
-      setPanOffset({
+      setPan({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y,
       });
@@ -206,8 +213,8 @@ export const FloodMap2D5: React.FC = () => {
     const is2D = mapSettings.projection === '2D';
 
     // Map screen mouse coordinates to transformed world coordinates
-    const worldX = (screenX - panOffset.x) / zoom;
-    const worldY = (screenY - panOffset.y) / zoom;
+    const worldX = (screenX - pan.x) / zoom;
+    const worldY = (screenY - pan.y) / zoom;
 
     let closestCell: GridNode | null = null;
     let minDistance = Infinity;
@@ -274,13 +281,13 @@ export const FloodMap2D5: React.FC = () => {
       ctx.strokeStyle = 'rgba(30, 41, 59, 0.4)';
       ctx.lineWidth = 1;
       const gridSpacing = 40;
-      for (let x = (panOffset.x % gridSpacing); x < width; x += gridSpacing) {
+      for (let x = (pan.x % gridSpacing); x < width; x += gridSpacing) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
         ctx.stroke();
       }
-      for (let y = (panOffset.y % gridSpacing); y < height; y += gridSpacing) {
+      for (let y = (pan.y % gridSpacing); y < height; y += gridSpacing) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
@@ -289,7 +296,7 @@ export const FloodMap2D5: React.FC = () => {
 
       // Apply viewport camera scale and pan offsets to canvas rendering context
       ctx.save();
-      ctx.translate(panOffset.x, panOffset.y);
+      ctx.translate(pan.x, pan.y);
       ctx.scale(zoom, zoom);
 
       const is2D = mapSettings.projection === '2D';
@@ -695,7 +702,7 @@ export const FloodMap2D5: React.FC = () => {
   }, [
     grid,
     zoom,
-    panOffset,
+    pan,
     mapSettings,
     selectedCellId,
     hoveredCell,
@@ -723,19 +730,27 @@ export const FloodMap2D5: React.FC = () => {
       <MapControls
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
-        onResetView={handleResetView}
+        onResetView={handleResetZoom}
         zoom={zoom}
       />
       <Legend />
 
       {/* Viewport Zoom & Pan Floating HUD */}
-      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 rounded-lg border border-slate-800/80 bg-slate-950/90 px-2.5 py-1.5 shadow-xl backdrop-blur-md text-xs">
-        <span className="font-mono text-[11px] text-slate-400 pr-1">
+      <div
+        className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 rounded-lg border border-slate-800/80 bg-slate-950/90 px-2.5 py-1.5 shadow-xl backdrop-blur-md text-xs"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <span className="font-mono text-[11px] text-slate-400 pr-1 select-none">
           {Math.round(zoom * 100)}%
         </span>
         <button
           type="button"
-          onClick={handleZoomIn}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleZoomIn(e);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           title="Zoom In (+)"
           className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
         >
@@ -743,15 +758,23 @@ export const FloodMap2D5: React.FC = () => {
         </button>
         <button
           type="button"
-          onClick={handleZoomOut}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleZoomOut(e);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           title="Zoom Out (-)"
           className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
         >
-          <span className="font-bold text-sm leading-none px-0.5">−</span>
+          <span className="font-bold text-sm leading-none px-0.5 select-none">−</span>
         </button>
         <button
           type="button"
-          onClick={handleResetView}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleResetZoom(e);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           title="Reset Viewport (↺)"
           className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
         >

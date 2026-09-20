@@ -209,14 +209,8 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const nextTourStep = useCallback(() => {
-    setTourStep((prev) => {
-      if (prev >= 5) {
-        closeTour();
-        return prev;
-      }
-      return prev + 1;
-    });
-  }, [closeTour]);
+    setTourStep((prev) => prev + 1);
+  }, []);
 
   const prevTourStep = useCallback(() => {
     setTourStep((prev) => Math.max(0, prev - 1));

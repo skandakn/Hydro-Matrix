@@ -156,6 +156,7 @@ export default function CrisisCommandPage() {
           }`}
         >
           <button
+            data-tour="chatbot-trigger"
             onClick={() => {
               setActiveModal('emergency_helpline');
               playTacticalAlertSound('critical');

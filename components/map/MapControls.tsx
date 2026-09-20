@@ -19,9 +19,9 @@ import {
 } from 'lucide-react';
 
 export interface MapControlsProps {
-  onZoomIn?: () => void;
-  onZoomOut?: () => void;
-  onResetView?: () => void;
+  onZoomIn?: (e?: React.MouseEvent) => void;
+  onZoomOut?: (e?: React.MouseEvent) => void;
+  onResetView?: (e?: React.MouseEvent) => void;
   zoom?: number;
 }
 
@@ -41,32 +41,39 @@ export const MapControls: React.FC<MapControlsProps> = ({
     t,
   } = useUIContext();
 
-  const handleZoomIn = () => {
+  const handleZoomIn = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onZoomIn) {
-      onZoomIn();
+      onZoomIn(e);
     } else {
-      updateMapSettings({ zoom: Math.min(3.0, (mapSettings.zoom || 1.0) * 1.25) });
+      updateMapSettings({ zoom: Math.min(2.5, Number(((mapSettings.zoom || 1.0) + 0.2).toFixed(2))) });
     }
   };
 
-  const handleZoomOut = () => {
+  const handleZoomOut = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onZoomOut) {
-      onZoomOut();
+      onZoomOut(e);
     } else {
-      updateMapSettings({ zoom: Math.max(0.5, (mapSettings.zoom || 1.0) / 1.25) });
+      updateMapSettings({ zoom: Math.max(0.6, Number(((mapSettings.zoom || 1.0) - 0.2).toFixed(2))) });
     }
   };
 
-  const handleResetView = () => {
+  const handleResetView = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onResetView) {
-      onResetView();
+      onResetView(e);
     } else {
       updateMapSettings({ zoom: 1.0 });
     }
   };
 
   return (
-    <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+    <div
+      className="absolute top-4 right-4 z-20 flex flex-col gap-2"
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       {/* 2.5D vs 2D Perspective Toggle */}
       <div className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950/85 p-1 shadow-xl backdrop-blur-md">
         <Button
@@ -217,12 +224,20 @@ export const MapControls: React.FC<MapControlsProps> = ({
       </div>
 
       {/* Camera & Audio Controls */}
-      <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/85 p-1 shadow-xl backdrop-blur-md">
+      <div
+        className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/85 p-1 shadow-xl backdrop-blur-md"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <Button
           size="icon"
           variant="ghost"
           className="h-7 w-7"
-          onClick={handleZoomIn}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleZoomIn(e);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           title={`Zoom In (+) ${zoom ? `[${Math.round(zoom * 100)}%]` : ''}`}
         >
           <ZoomIn className="h-3.5 w-3.5 text-slate-300" />
@@ -231,19 +246,37 @@ export const MapControls: React.FC<MapControlsProps> = ({
           size="icon"
           variant="ghost"
           className="h-7 w-7"
-          onClick={handleZoomOut}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleZoomOut(e);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           title={`Zoom Out (-) ${zoom ? `[${Math.round(zoom * 100)}%]` : ''}`}
         >
           <ZoomOut className="h-3.5 w-3.5 text-slate-300" />
         </Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleResetView} title="Reset Viewport (↺)">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleResetView(e);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          title="Reset Viewport (↺)"
+        >
           <RotateCcw className="h-3.5 w-3.5 text-slate-300" />
         </Button>
         <Button
           size="icon"
           variant="ghost"
           className="h-7 w-7"
-          onClick={toggleAudioAlerts}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleAudioAlerts();
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
           title={audioAlertsEnabled ? 'Mute Alert Sirens' : 'Enable Alert Sirens'}
         >
           {audioAlertsEnabled ? (

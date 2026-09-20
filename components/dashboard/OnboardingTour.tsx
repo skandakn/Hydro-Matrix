@@ -28,6 +28,8 @@ import {
   ChevronRight,
   Check,
   X,
+  Tent,
+  MessageSquare,
 } from 'lucide-react';
 
 export interface TourStepDefinition {
@@ -102,6 +104,26 @@ export const TOUR_STEPS: TourStepDefinition[] = [
     icon: <Activity className="h-5 w-5 text-cyan-400" />,
     padding: 6,
   },
+  {
+    id: 'relief-camps',
+    targetSelector: '[data-tour="relief-camps"], [data-tour="evac-advisor"]',
+    title: 'Disaster Relief & Shelters',
+    content: 'Track designated safe shelters across Guwahati in real time. Monitor shelter capacities, occupancy rates, and diversion plans as residents evacuate flooded sectors.',
+    badge: 'CIVIL DEFENSE',
+    placement: 'bottom',
+    icon: <Tent className="h-5 w-5 text-emerald-400" />,
+    padding: 6,
+  },
+  {
+    id: 'incident-chatbot',
+    targetSelector: '[data-tour="chatbot-trigger"], [data-tour="sitrep-trigger"]',
+    title: 'Incident Command Chatbot',
+    content: 'Interact directly with an AI emergency assistant to query current water levels, request evacuation route advice, or draft instant municipal situation reports.',
+    badge: 'AI COMMAND',
+    placement: 'top',
+    icon: <MessageSquare className="h-5 w-5 text-rose-400" />,
+    padding: 8,
+  },
 ];
 
 export const OnboardingTour: React.FC = () => {
@@ -175,6 +197,11 @@ export const OnboardingTour: React.FC = () => {
       }
     }
 
+    // Step 8: Chatbot FAB in bottom-right (close right drawer on mobile/tablet to prevent obscuring)
+    if (tourStep === 7 && viewport.width < 1024 && isRightDrawerOpen) {
+      setIsRightDrawerOpen(false);
+    }
+
     // Scroll into view & measure rect after short delay for animations
     const step = TOUR_STEPS[tourStep];
     if (!step) return;
@@ -207,6 +234,7 @@ export const OnboardingTour: React.FC = () => {
     isRightDrawerOpen,
     setIsLeftDrawerOpen,
     setIsRightDrawerOpen,
+    viewport.width,
   ]);
 
   // ── Listen to window scroll & resize events (including drawer scrolls) ────
@@ -283,7 +311,9 @@ export const OnboardingTour: React.FC = () => {
       switch (currentStep.placement) {
         case 'bottom':
           popoverTop = targetRect.bottom + 16;
-          popoverLeft = targetRect.left;
+          popoverLeft = targetRect.right > viewport.width / 2
+            ? targetRect.right - popoverWidth
+            : targetRect.left;
           break;
 
         case 'right':
@@ -308,7 +338,13 @@ export const OnboardingTour: React.FC = () => {
 
         case 'top':
           popoverTop = targetRect.top - popoverHeight - 16;
-          popoverLeft = targetRect.left;
+          popoverLeft = targetRect.right > viewport.width / 2
+            ? targetRect.right - popoverWidth
+            : targetRect.left;
+          // Fall back if overflowing top edge
+          if (popoverTop < 16) {
+            popoverTop = targetRect.bottom + 16;
+          }
           break;
 
         case 'center':
