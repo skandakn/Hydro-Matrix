@@ -38,6 +38,7 @@ import {
   Tent,
   MoveRight,
   Plus,
+  RotateCcw,
   Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -63,12 +64,16 @@ export const FloodMap2D5: React.FC = () => {
 
   const { mapSettings, playTacticalAlertSound, setActiveModal } = useUIContext();
 
-  // Camera Pan & Zoom Transform state
-  const [camera, setCamera] = useState({
-    x: 0,
-    y: 0,
-    zoom: 1.0,
-  });
+  // Viewport camera scale and pan offsets state
+  const [zoom, setZoom] = useState<number>(1.0);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev * 1.25, 3.0));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev / 1.25, 0.5));
+  const handleResetView = () => {
+    setZoom(1.0);
+    setPanOffset({ x: 0, y: 0 });
+  };
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -96,27 +101,26 @@ export const FloodMap2D5: React.FC = () => {
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const zoomDelta = e.deltaY < 0 ? 0.1 : -0.1;
-    setCamera(c => ({
-      ...c,
-      zoom: Math.min(2.6, Math.max(0.5, c.zoom + zoomDelta)),
-    }));
+    if (e.deltaY < 0) {
+      setZoom((prev) => Math.min(prev * 1.15, 3.0));
+    } else {
+      setZoom((prev) => Math.max(prev / 1.15, 0.5));
+    }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
       setIsDragging(true);
-      setDragStart({ x: e.clientX - camera.x, y: e.clientY - camera.y });
+      setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
-      setCamera(c => ({
-        ...c,
+      setPanOffset({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y,
-      }));
+      });
     }
 
     if (!containerRef.current || !canvasRef.current) return;
@@ -153,16 +157,19 @@ export const FloodMap2D5: React.FC = () => {
    */
   const projectCoordinates = useCallback(
     (gridX: number, gridY: number, elev: number, width: number, height: number) => {
-      const centerX = width / 2 + camera.x;
+      // In camera-transformed space (ctx.scale(zoom, zoom)), dimensions are scaled by zoom
+      const worldWidth = width / zoom;
+      const worldHeight = height / zoom;
+      const centerX = worldWidth / 2;
       const is2D = mapSettings.projection === '2D';
 
       if (is2D) {
         // Orthographic GIS 2D Top-Down View
-        const cellSize = 30 * camera.zoom;
+        const cellSize = 30;
         const totalW = GRID_WIDTH * cellSize;
         const totalH = GRID_HEIGHT * cellSize;
         const startX = centerX - totalW / 2;
-        const startY = height / 2 + camera.y - totalH / 2;
+        const startY = worldHeight / 2 - totalH / 2;
 
         return {
           px: startX + gridX * cellSize + cellSize / 2,
@@ -171,10 +178,10 @@ export const FloodMap2D5: React.FC = () => {
         };
       } else {
         // 2.5D Isometric Diamond Projection
-        const tileW = 54 * camera.zoom;
-        const tileH = 27 * camera.zoom;
-        const elevScale = mapSettings.showElevationContours ? 1.8 * camera.zoom : 0;
-        const startY = height / 2 + camera.y - (GRID_HEIGHT * tileH) / 3;
+        const tileW = 54;
+        const tileH = 27;
+        const elevScale = mapSettings.showElevationContours ? 1.8 : 0;
+        const startY = worldHeight / 2 - (GRID_HEIGHT * tileH) / 3;
 
         // Relative elevation normalized from MSL datum ~48m
         const relElev = Math.max(0, elev - 48.0);
@@ -189,7 +196,7 @@ export const FloodMap2D5: React.FC = () => {
         };
       }
     },
-    [camera, mapSettings.projection, mapSettings.showElevationContours]
+    [zoom, mapSettings.projection, mapSettings.showElevationContours]
   );
 
   const pickCellAtCoordinates = (screenX: number, screenY: number): GridNode | null => {
@@ -197,6 +204,10 @@ export const FloodMap2D5: React.FC = () => {
     const width = canvasRef.current.width / (window.devicePixelRatio || 1);
     const height = canvasRef.current.height / (window.devicePixelRatio || 1);
     const is2D = mapSettings.projection === '2D';
+
+    // Map screen mouse coordinates to transformed world coordinates
+    const worldX = (screenX - panOffset.x) / zoom;
+    const worldY = (screenY - panOffset.y) / zoom;
 
     let closestCell: GridNode | null = null;
     let minDistance = Infinity;
@@ -207,16 +218,16 @@ export const FloodMap2D5: React.FC = () => {
       if (is2D) {
         const half = proj.size! / 2;
         if (
-          screenX >= proj.px - half &&
-          screenX <= proj.px + half &&
-          screenY >= proj.py - half &&
-          screenY <= proj.py + half
+          worldX >= proj.px - half &&
+          worldX <= proj.px + half &&
+          worldY >= proj.py - half &&
+          worldY <= proj.py + half
         ) {
           return node;
         }
       } else {
-        const dx = screenX - proj.px;
-        const dy = screenY - proj.py;
+        const dx = worldX - proj.px;
+        const dy = worldY - proj.py;
         const metric = Math.abs(dx) / (proj.tileW! / 2) + Math.abs(dy) / (proj.tileH! / 2);
         if (metric <= 1.05 && metric < minDistance) {
           minDistance = metric;
@@ -263,18 +274,23 @@ export const FloodMap2D5: React.FC = () => {
       ctx.strokeStyle = 'rgba(30, 41, 59, 0.4)';
       ctx.lineWidth = 1;
       const gridSpacing = 40;
-      for (let x = (camera.x % gridSpacing); x < width; x += gridSpacing) {
+      for (let x = (panOffset.x % gridSpacing); x < width; x += gridSpacing) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
         ctx.stroke();
       }
-      for (let y = (camera.y % gridSpacing); y < height; y += gridSpacing) {
+      for (let y = (panOffset.y % gridSpacing); y < height; y += gridSpacing) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
       }
+
+      // Apply viewport camera scale and pan offsets to canvas rendering context
+      ctx.save();
+      ctx.translate(panOffset.x, panOffset.y);
+      ctx.scale(zoom, zoom);
 
       const is2D = mapSettings.projection === '2D';
 
@@ -390,7 +406,7 @@ export const FloodMap2D5: React.FC = () => {
           const cy = proj.py;
 
           const relElev = Math.max(0, node.elevation - 48.0);
-          const columnHeight = Math.max(6, relElev * 1.6 * camera.zoom);
+          const columnHeight = Math.max(6, relElev * 1.6);
 
           // Right extruded wall
           ctx.beginPath();
@@ -439,7 +455,7 @@ export const FloodMap2D5: React.FC = () => {
 
           // Volumetric Water Layer (extrude height proportional to waterDepth)
           if (hasWater && mapSettings.showWaterDepthHeatmap) {
-            const waterExtrusion = Math.min(32, Math.max(1, depth * 14 * camera.zoom));
+            const waterExtrusion = Math.min(32, Math.max(1, depth * 14));
             const wy = cy - waterExtrusion;
 
             if (waterExtrusion > 1) {
@@ -513,7 +529,7 @@ export const FloodMap2D5: React.FC = () => {
         // --- Flow Vectors ---
         if (mapSettings.showFlowVectors && node.flowVector.speed > 0.08) {
           const spd = node.flowVector.speed;
-          const arrowLen = Math.min(18, Math.max(6, spd * 12 * camera.zoom));
+          const arrowLen = Math.min(18, Math.max(6, spd * 12));
           const angle = Math.atan2(node.flowVector.vy, node.flowVector.vx);
 
           const cx = proj.px;
@@ -669,7 +685,8 @@ export const FloodMap2D5: React.FC = () => {
         }
       }
 
-      ctx.restore();
+      ctx.restore(); // restores camera pan & zoom transform
+      ctx.restore(); // restores DPR transform
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -677,7 +694,8 @@ export const FloodMap2D5: React.FC = () => {
     return () => cancelAnimationFrame(animationFrameId);
   }, [
     grid,
-    camera,
+    zoom,
+    panOffset,
     mapSettings,
     selectedCellId,
     hoveredCell,
@@ -702,8 +720,44 @@ export const FloodMap2D5: React.FC = () => {
         className="absolute inset-0 w-full h-full cursor-crosshair touch-none"
       />
 
-      <MapControls />
+      <MapControls
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetView={handleResetView}
+        zoom={zoom}
+      />
       <Legend />
+
+      {/* Viewport Zoom & Pan Floating HUD */}
+      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 rounded-lg border border-slate-800/80 bg-slate-950/90 px-2.5 py-1.5 shadow-xl backdrop-blur-md text-xs">
+        <span className="font-mono text-[11px] text-slate-400 pr-1">
+          {Math.round(zoom * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          title="Zoom In (+)"
+          className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          title="Zoom Out (-)"
+          className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
+        >
+          <span className="font-bold text-sm leading-none px-0.5">−</span>
+        </button>
+        <button
+          type="button"
+          onClick={handleResetView}
+          title="Reset Viewport (↺)"
+          className="rounded p-1 text-slate-300 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
       {/* Real-time Cell Hover Tooltip */}
       {hoveredCell && !selectedNode && (

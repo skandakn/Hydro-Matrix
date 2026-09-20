@@ -43,7 +43,11 @@ import {
   GRID_WIDTH,
   GRID_HEIGHT,
 } from '@/lib/simulation-engine/cityGrid';
-import { runSimulationStep as runSimulationStepPhysics } from '@/lib/simulation-engine/physics';
+import {
+  runSimulationStep as runSimulationStepPhysics,
+  PUMP_MAX_EXTRACTION_COEFFICIENT,
+} from '@/lib/simulation-engine/physics';
+export { PUMP_MAX_EXTRACTION_COEFFICIENT };
 import { PRESET_SCENARIOS } from '@/lib/simulation-engine/scenarios';
 import {
   DEFAULT_LANDMARK_CAMPS,

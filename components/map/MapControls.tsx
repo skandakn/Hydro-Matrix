@@ -18,7 +18,19 @@ import {
   Tent,
 } from 'lucide-react';
 
-export const MapControls: React.FC = () => {
+export interface MapControlsProps {
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onResetView?: () => void;
+  zoom?: number;
+}
+
+export const MapControls: React.FC<MapControlsProps> = ({
+  onZoomIn,
+  onZoomOut,
+  onResetView,
+  zoom,
+}) => {
   const {
     mapSettings,
     toggleLayer,
@@ -28,9 +40,29 @@ export const MapControls: React.FC = () => {
     updateMapSettings,
   } = useUIContext();
 
-  const handleZoomIn = () => updateMapSettings({ zoom: Math.min(2.4, (mapSettings.zoom || 1.0) + 0.2) });
-  const handleZoomOut = () => updateMapSettings({ zoom: Math.max(0.6, (mapSettings.zoom || 1.0) - 0.2) });
-  const handleResetView = () => updateMapSettings({ zoom: 1.0 });
+  const handleZoomIn = () => {
+    if (onZoomIn) {
+      onZoomIn();
+    } else {
+      updateMapSettings({ zoom: Math.min(3.0, (mapSettings.zoom || 1.0) * 1.25) });
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (onZoomOut) {
+      onZoomOut();
+    } else {
+      updateMapSettings({ zoom: Math.max(0.5, (mapSettings.zoom || 1.0) / 1.25) });
+    }
+  };
+
+  const handleResetView = () => {
+    if (onResetView) {
+      onResetView();
+    } else {
+      updateMapSettings({ zoom: 1.0 });
+    }
+  };
 
   return (
     <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
@@ -185,13 +217,25 @@ export const MapControls: React.FC = () => {
 
       {/* Camera & Audio Controls */}
       <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/85 p-1 shadow-xl backdrop-blur-md">
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleZoomIn} title="Zoom In">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={handleZoomIn}
+          title={`Zoom In (+) ${zoom ? `[${Math.round(zoom * 100)}%]` : ''}`}
+        >
           <ZoomIn className="h-3.5 w-3.5 text-slate-300" />
         </Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleZoomOut} title="Zoom Out">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={handleZoomOut}
+          title={`Zoom Out (-) ${zoom ? `[${Math.round(zoom * 100)}%]` : ''}`}
+        >
           <ZoomOut className="h-3.5 w-3.5 text-slate-300" />
         </Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleResetView} title="Reset Camera">
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleResetView} title="Reset Viewport (↺)">
           <RotateCcw className="h-3.5 w-3.5 text-slate-300" />
         </Button>
         <Button

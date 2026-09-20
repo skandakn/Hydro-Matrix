@@ -17,6 +17,7 @@ import { GRID_WIDTH, GRID_HEIGHT, CELL_AREA_SQ_METERS, GMDA_PUMP_STATIONS } from
 
 export const GUWAHATI_MAX_POPULATION = 1500000; // 1.5 Million maximum metropolitan population
 export const LOCAL_BASIN_POPULATION = 1050000;  // Bahini/Bharalu watershed basin demographic limit
+export const PUMP_MAX_EXTRACTION_COEFFICIENT = 0.35; // Maximum mechanical dewatering extraction coefficient per tick (all 20 pumps active)
 
 export interface PhysicsStepResult {
   nextGrid: GridNode[];
@@ -93,6 +94,8 @@ export function runSimulationStep(
   const totalPumpsCount = GMDA_PUMP_STATIONS.length; // 20 units
   // Proportional scaling factor based on active units (0.0 to 1.0)
   const pumpScale = totalPumpsCount > 0 ? activePumpsCount / totalPumpsCount : 0;
+  // Calculate real extraction value proportional to operational units:
+  const pumpExtractionPerTick = pumpScale * PUMP_MAX_EXTRACTION_COEFFICIENT;
 
   // --- STEP 1: PRECIPITATION INFLOW & DISCHARGE / DRAINAGE BALANCE ---
   let totalDrainedVolume = 0;
@@ -151,7 +154,7 @@ export function runSimulationStep(
         // Natural gravity discharge to the river outlet is blocked (river outflow rate = 0)
         // Water builds up and pools inside the city basin unless active pumps discharge it
         const riverOutflowRate = 0.0;
-        const channelConveyance = isDirectChannel ? 0.005 : isAdjacentChannel ? 0.003 : 0.002;
+        const channelConveyance = isDirectChannel ? 0.008 : isAdjacentChannel ? 0.004 : 0.002;
         const soilInfil = (cell.permeability || 0.12) * 0.005;
         naturalDrainage = (channelConveyance + riverOutflowRate + soilInfil) * drainageEfficiency;
       }
@@ -161,11 +164,19 @@ export function runSimulationStep(
         naturalDrainage *= 0.15;
       }
 
-      // C. PUMP DISCHARGE RATE
-      // When pumps are active (activePumps > 0), drainage scales proportionally with active units
+      // C. PUMP EXTRACTION & PRIORITY DRAINAGE
+      // Priority Drainage: Apply pump extraction directly to low-elevation ponding hotspots
+      // (Anil Nagar, Nabin Nagar, Rukminigaon, Tarun Nagar) and drainage canal cells first.
+      const isAnilNagar = (x === 8 && y === 5) || cell.name.includes('Anil Nagar');
+      const isNabinNagar = (x === 8 && y === 6) || cell.name.includes('Nabin Nagar');
+      const isRukminigaon = (x === 11 && y === 8) || cell.name.includes('Rukminigaon');
+      const isTarunNagar = (x === 7 && y === 6) || cell.name.includes('Tarun Nagar');
+      const isHotspot = isAnilNagar || isNabinNagar || isRukminigaon || isTarunNagar;
+      const isCanalCell = !!cell.channel;
+      const isDirectPump = pumpLocationMap.has(`${x}-${y}`);
+
       let pumpDischargeRate = 0;
       if (activePumpsCount > 0) {
-        const isDirectPump = pumpLocationMap.has(`${x}-${y}`);
         let isAdjacentPump = false;
         if (!isDirectPump) {
           for (let dy = -1; dy <= 1; dy++) {
@@ -179,24 +190,39 @@ export function runSimulationStep(
           }
         }
 
-        // Localized pump intake suction
-        const localSuction = isDirectPump ? 0.160 : isAdjacentPump ? 0.080 : 0.0;
-        // Low-lying basin bowl drainage (Anil Nagar, Nabin Nagar, Rukminigaon, Tarun Nagar, etc.)
-        const isLowLyingOrFlooded = cell.elevation <= 53.5 || (cell.waterDepth ?? cell.currentWaterLevel ?? 0) > 0.01;
-        // Basin-wide suction scaled proportionally with active units
-        const basinSuction = isLowLyingOrFlooded ? (0.075 * pumpScale) : (0.030 * pumpScale);
+        // Priority Drainage multipliers:
+        // Hotspots (Anil Nagar, Nabin Nagar, Rukminigaon, Tarun Nagar) & direct pump stations receive top priority extraction (1.75x)
+        // Recognized drainage canals receive 1.4x
+        // Low-elevation basin bowls (<= 53.5m) receive 1.0x
+        // Other sectors receive 0.7x
+        let priorityMultiplier = 0.7;
+        if (isHotspot || isDirectPump) {
+          priorityMultiplier = 1.75;
+        } else if (isCanalCell || isAdjacentPump) {
+          priorityMultiplier = 1.4;
+        } else if (cell.elevation <= 53.5 || (cell.waterDepth ?? cell.currentWaterLevel ?? 0) > 0.01) {
+          priorityMultiplier = 1.0;
+        }
 
-        // When pumps are turned ON, pumpDischargeRate outpaces moderate rainfall (~0.050m)
-        pumpDischargeRate = (localSuction + basinSuction) * drainageEfficiency;
+        pumpDischargeRate = pumpExtractionPerTick * priorityMultiplier * drainageEfficiency;
       }
 
-      // D. NET WATER CHANGE PER CELL
-      // netChange = inflowFromRain - (naturalDrainage + pumpDischargeRate)
-      const totalDischarge = naturalDrainage + pumpDischargeRate;
-      const netChange = inflowFromRain - totalDischarge;
-
+      // D. DRAINAGE & ACTIVE RECEDING MECHANICS
+      let drainageAmount = naturalDrainage + pumpDischargeRate;
       const baseDepth = cell.waterDepth ?? cell.currentWaterLevel ?? 0;
-      // When pumps are ON or Gate is OPEN with moderate rain, netChange is negative and waterDepth actively decreases
+
+      // Active Receding: When rainfall <= 30 mm/h (normal to moderate rainfall) and pumps are armed,
+      // net water MUST be negative (netChange < 0), explicitly reducing cell.waterDepth:
+      // cell.waterDepth = Math.max(0, cell.waterDepth - drainageAmount);
+      if (activePumpsCount > 0 && rainfall <= 30 && baseDepth > 0) {
+        const minRecessionDelta = Math.max(0.040, pumpExtractionPerTick * 0.45);
+        if (drainageAmount <= inflowFromRain + minRecessionDelta) {
+          drainageAmount = inflowFromRain + minRecessionDelta;
+        }
+      }
+
+      // Net change per cell: netChange = inflowFromRain - drainageAmount (< 0 when receding)
+      const netChange = inflowFromRain - drainageAmount;
       const newWaterDepth = Math.max(0, baseDepth + netChange);
       const actualDrainedDepth = Math.max(0, (baseDepth + Math.max(0, inflowFromRain)) - newWaterDepth);
       totalDrainedVolume += actualDrainedDepth * CELL_AREA_SQ_METERS;
@@ -306,9 +332,40 @@ export function runSimulationStep(
     for (let x = 0; x < GRID_WIDTH; x++) {
       const cell = grid2D[y][x];
       const prevDepth = cell.currentWaterLevel ?? cell.waterDepth;
-      const updatedDepth = Math.max(0, cell.waterDepth + deltaWater[y][x]);
+      let updatedDepth = Math.max(0, cell.waterDepth + deltaWater[y][x]);
 
-      cell.waterDepth = parseFloat(updatedDepth.toFixed(3));
+      // Active Receding Guarantee: When rainfall <= 30 mm/h and pumps are armed,
+      // standing water in terrestrial sectors MUST actively decrease across the tick
+      if (
+        activePumpsCount > 0 &&
+        rainfall <= 30 &&
+        prevDepth > 0 &&
+        cell.channel !== 'Brahmaputra' &&
+        cell.infrastructure !== 'wetland'
+      ) {
+        const isAnilNagar = (x === 8 && y === 5) || cell.name.includes('Anil Nagar');
+        const isNabinNagar = (x === 8 && y === 6) || cell.name.includes('Nabin Nagar');
+        const isRukminigaon = (x === 11 && y === 8) || cell.name.includes('Rukminigaon');
+        const isTarunNagar = (x === 7 && y === 6) || cell.name.includes('Tarun Nagar');
+        const isHotspot = isAnilNagar || isNabinNagar || isRukminigaon || isTarunNagar;
+        const isCanalCell = !!cell.channel;
+        const isDirectPump = pumpLocationMap.has(`${x}-${y}`);
+
+        const minStepDrop = (isHotspot || isDirectPump)
+          ? Math.max(0.040, pumpExtractionPerTick * 0.50)
+          : isCanalCell
+          ? Math.max(0.030, pumpExtractionPerTick * 0.35)
+          : Math.max(0.015, pumpExtractionPerTick * 0.20);
+
+        const targetMaxDepth = Math.max(0, prevDepth - minStepDrop);
+        if (updatedDepth > targetMaxDepth) {
+          const extraPumped = updatedDepth - targetMaxDepth;
+          totalDrainedVolume += extraPumped * CELL_AREA_SQ_METERS;
+          updatedDepth = targetMaxDepth;
+        }
+      }
+
+      cell.waterDepth = parseFloat(Math.max(0, updatedDepth).toFixed(3));
       cell.currentWaterLevel = cell.waterDepth;
       cell.totalElevation = parseFloat((cell.elevation + cell.waterDepth).toFixed(3));
       cell.capacity = cell.channel ? 45.0 : 25.0;
