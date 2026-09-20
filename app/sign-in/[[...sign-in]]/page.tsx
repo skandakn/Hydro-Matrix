@@ -36,8 +36,8 @@ export default function SignInPage() {
           <ShieldAlert className="h-6 w-6 text-cyan-400" />
         </div>
         <div className="flex items-center gap-2">
-          <h1 className="text-xl md:text-2xl font-black tracking-wider text-white">
-            FLOW<span className="text-cyan-400">SHIELD</span>
+          <h1 className="text-xl md:text-2xl font-black tracking-wider text-white whitespace-nowrap">
+            HYDRO<span className="text-cyan-400">&#8202;MATRIX</span>
           </h1>
           <span className="rounded bg-cyan-950 px-2 py-0.5 text-[10px] font-mono font-bold text-cyan-300 border border-cyan-500/40">
             SECURE ACCESS
